@@ -1,0 +1,9 @@
+<h2>Tambah Contact</h2>
+
+<form method="post">
+  {% csrf_token %}
+  Nama: <input type="text" name="name"><br>
+  Nomor WA: <input type="text" name="phone"><br>
+
+  <button type="submit">Simpan</button>
+</form>

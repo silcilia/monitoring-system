@@ -1,0 +1,15 @@
+<h2>Tambah Service</h2>
+
+<form method="post">
+  {% csrf_token %}
+  Nama: <input type="text" name="name"><br>
+  URL/IP: <input type="text" name="url"><br>
+  
+  Type:
+  <select name="service_type">
+    <option value="HTTP">HTTP</option>
+    <option value="PING">PING</option>
+  </select><br>
+
+  <button type="submit">Simpan</button>
+</form>

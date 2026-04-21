@@ -1,0 +1,8 @@
+<h2>Daftar Contact</h2>
+<a href="/contacts/add/">Tambah Contact</a>
+
+<ul>
+  {% for c in contacts %}
+    <li>{{ c.name }} - {{ c.phone_number }}</li>
+  {% endfor %}
+</ul>

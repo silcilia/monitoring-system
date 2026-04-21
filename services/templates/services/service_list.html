@@ -1,0 +1,8 @@
+<h2>Daftar Service</h2>
+<a href="/services/add/">Tambah Service</a>
+
+<ul>
+  {% for s in services %}
+    <li>{{ s.name }} - {{ s.url }} - {{ s.service_type }}</li>
+  {% endfor %}
+</ul>
