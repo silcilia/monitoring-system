@@ -27,13 +27,8 @@ class Service(models.Model):
 # CONTACT
 # =========================
 class Contact(models.Model):
-    CHANNEL_CHOICES = [
-        ('WA', 'WhatsApp'),
-    ]
-
     name = models.CharField(max_length=100)
     phone_number = models.CharField(max_length=20)
-    channel = models.CharField(max_length=10, choices=CHANNEL_CHOICES, default='WA')
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
@@ -41,31 +36,20 @@ class Contact(models.Model):
 
 
 # =========================
-# RELASI SERVICE - CONTACT (MANY TO MANY)
+# RELASI SERVICE - CONTACT
 # =========================
 class ServiceContact(models.Model):
     service = models.ForeignKey(Service, on_delete=models.CASCADE)
     contact = models.ForeignKey(Contact, on_delete=models.CASCADE)
 
-    def __str__(self):
-        return f"{self.service.name} - {self.contact.name}"
-
 
 # =========================
-# LOG MONITORING SERVICE
+# LOG SERVICE
 # =========================
 class Log(models.Model):
-    STATUS_CHOICES = [
-        ('UP', 'UP'),
-        ('DOWN', 'DOWN'),
-    ]
-
     service = models.ForeignKey(Service, on_delete=models.CASCADE)
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES)
+    status = models.CharField(max_length=10)
     timestamp = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.service.name} - {self.status}"
 
 
 # =========================
@@ -82,7 +66,15 @@ class Device(models.Model):
 
 
 # =========================
-# POWER LOG (DATA LISTRIK)
+# RELASI DEVICE - CONTACT
+# =========================
+class DeviceContact(models.Model):
+    device = models.ForeignKey(Device, on_delete=models.CASCADE)
+    contact = models.ForeignKey(Contact, on_delete=models.CASCADE)
+
+
+# =========================
+# POWER LOG
 # =========================
 class PowerLog(models.Model):
     device = models.ForeignKey(Device, on_delete=models.CASCADE)
@@ -90,6 +82,3 @@ class PowerLog(models.Model):
     current = models.FloatField()
     power = models.FloatField()
     timestamp = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.device.name} - {self.voltage}V"

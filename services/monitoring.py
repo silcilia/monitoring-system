@@ -1,30 +1,30 @@
 import requests
-from .models import Service, Log, ServiceContact
 from datetime import datetime
-
+from .models import (
+    Service, Log, ServiceContact,
+    Device, PowerLog, DeviceContact
+)
 
 # =========================
-# CEK SERVICE (HTTP)
+# CEK SERVICE
 # =========================
 def check_service(url):
     try:
         response = requests.get(url, timeout=5)
-        if response.status_code == 200:
-            return "UP"
-        else:
-            return "DOWN"
+        return "UP" if response.status_code == 200 else "DOWN"
     except:
         return "DOWN"
 
 
 # =========================
-# KIRIM WHATSAPP (FONNTE)
+# KIRIM WA
 # =========================
 def send_whatsapp(message, number):
     url = "https://api.fonnte.com/send"
     headers = {
-        "Authorization": "TOKEN_KAMU"  # ganti token kamu
+        "Authorization": "ISI_TOKEN_KAMU"
     }
+
     data = {
         "target": number,
         "message": message
@@ -37,9 +37,9 @@ def send_whatsapp(message, number):
 
 
 # =========================
-# PROSES MONITORING
+# MONITOR SERVICE
 # =========================
-def run_monitoring():
+def run_service_monitoring():
     services = Service.objects.all()
 
     for service in services:
@@ -48,31 +48,69 @@ def run_monitoring():
 
         print(f"{service.name} | {status_lama} -> {status_baru}")
 
-        # =========================
-        # CEK PERUBAHAN STATUS
-        # =========================
         if status_baru != status_lama:
 
-            # SIMPAN LOG
-            Log.objects.create(
-                service=service,
-                status=status_baru
-            )
+            Log.objects.create(service=service, status=status_baru)
 
-            # UPDATE STATUS TERAKHIR
             service.last_status = status_baru
             service.save()
 
-            # FORMAT PESAN
             if status_baru == "DOWN":
-                message = f"🚨 ALERT LAYANAN DOWN\nService: {service.name}\nWaktu: {datetime.now()}"
+                message = f"🚨 SERVICE DOWN\n{service.name}\n{datetime.now()}"
             else:
-                message = f"✅ LAYANAN NORMAL\nService: {service.name}\nWaktu: {datetime.now()}"
+                message = f"✅ SERVICE NORMAL\n{service.name}\n{datetime.now()}"
 
-            # AMBIL CONTACT TERKAIT
             contacts = ServiceContact.objects.filter(service=service)
 
-            # KIRIM KE SEMUA NOMOR
             for sc in contacts:
                 if sc.contact.is_active:
                     send_whatsapp(message, sc.contact.phone_number)
+
+
+# =========================
+# MONITOR POWER (IOT)
+# =========================
+def run_power_monitoring():
+    devices = Device.objects.all()
+
+    for device in devices:
+        last_log = PowerLog.objects.filter(device=device).last()
+
+        if not last_log:
+            continue
+
+        alert = False
+        message = ""
+
+        if last_log.voltage < device.threshold_voltage:
+            alert = True
+            message += "⚡ Voltage Drop\n"
+
+        if last_log.current > device.threshold_current:
+            alert = True
+            message += "🔥 Arus Tinggi\n"
+
+        if alert:
+            message += f"""
+Device: {device.name}
+Voltage: {last_log.voltage}V
+Current: {last_log.current}A
+Time: {datetime.now()}
+"""
+
+            contacts = DeviceContact.objects.filter(device=device)
+
+            for dc in contacts:
+                if dc.contact.is_active:
+                    send_whatsapp(message, dc.contact.phone_number)
+
+
+# =========================
+# JALANKAN SEMUA
+# =========================
+def run_all_monitoring():
+    print("=== SERVICE ===")
+    run_service_monitoring()
+
+    print("=== POWER ===")
+    run_power_monitoring()
