@@ -1,8 +1,37 @@
-<h2>Daftar Service</h2>
-<a href="/services/add/">Tambah Service</a>
+{% extends 'services/base.html' %}
 
-<ul>
-  {% for s in services %}
-    <li>{{ s.name }} - {{ s.url }} - {{ s.service_type }}</li>
-  {% endfor %}
-</ul>
+{% block content %}
+<h2>Daftar Service</h2>
+
+<a href="/services/add/" class="btn">+ Tambah Service</a>
+
+<div class="card">
+  <table>
+    <tr>
+      <th>Nama</th>
+      <th>URL / IP</th>
+      <th>Tipe</th>
+      <th>Status</th>
+    </tr>
+
+    {% for s in services %}
+    <tr>
+      <td>{{ s.name }}</td>
+      <td>{{ s.url }}</td>
+      <td>{{ s.service_type }}</td>
+      <td>
+        {% if s.last_status == "UP" %}
+          <span class="status up">UP</span>
+        {% else %}
+          <span class="status down">DOWN</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="4">Belum ada data</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

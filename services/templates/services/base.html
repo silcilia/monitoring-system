@@ -1,0 +1,38 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Monitoring System</title>
+    <link rel="stylesheet" href="{% static 'services/css/style.css' %}">
+</head>
+<body>
+
+<div class="sidebar">
+    <h2>Monitoring</h2>
+    <ul>
+        <li onclick="loadPage('dashboard', this)" class="active">🏠 Dashboard</li>
+        <li onclick="loadPage('services', this)">🖥 Services</li>
+        <li onclick="loadPage('contacts', this)">📱 Contacts</li>
+    </ul>
+</div>
+
+<div class="main">
+    <div id="content">
+        {% block content %}{% endblock %}
+    </div>
+</div>
+
+<script src="{% static 'services/js/app.js' %}"></script>
+
+<script>
+    // OPTIONAL: hanya load otomatis kalau halaman kosong
+    window.addEventListener("DOMContentLoaded", function () {
+        const content = document.getElementById("content");
+        if (content.innerHTML.trim() === "") {
+            loadPage('dashboard', document.querySelector('.sidebar li'));
+        }
+    });
+</script>
+
+</body>
+</html>

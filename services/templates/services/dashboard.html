@@ -1,0 +1,30 @@
+{% extends 'services/base.html' %}
+
+{% block content %}
+<h2>Dashboard Monitoring</h2>
+
+<div class="stats-container">
+    
+    <div class="stat-card">
+        <h3>Total Services</h3>
+        <p>{{ total }}</p>
+    </div>
+
+    <div class="stat-card up">
+        <h3>Services UP</h3>
+        <p>{{ up }}</p>
+    </div>
+
+    <div class="stat-card down">
+        <h3>Services DOWN</h3>
+        <p>{{ down }}</p>
+    </div>
+
+</div>
+
+<div class="card">
+    <h3>Status Sistem</h3>
+    <p>Monitoring aktif dan berjalan otomatis</p>
+</div>
+
+{% endblock %}

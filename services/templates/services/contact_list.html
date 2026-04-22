@@ -1,8 +1,27 @@
-<h2>Daftar Contact</h2>
-<a href="/contacts/add/">Tambah Contact</a>
+{% extends 'services/base.html' %}
 
-<ul>
-  {% for c in contacts %}
-    <li>{{ c.name }} - {{ c.phone_number }}</li>
-  {% endfor %}
-</ul>
+{% block content %}
+<h2>Daftar Contact</h2>
+
+<a href="/contacts/add/" class="btn">+ Tambah Contact</a>
+
+<div class="card">
+  <table>
+    <tr>
+      <th>Nama</th>
+      <th>Nomor WhatsApp</th>
+    </tr>
+
+    {% for c in contacts %}
+    <tr>
+      <td>{{ c.name }}</td>
+      <td>{{ c.phone_number }}</td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="2">Belum ada data</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

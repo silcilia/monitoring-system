@@ -1,15 +1,25 @@
+{% extends 'services/base.html' %}
+
+{% block content %}
 <h2>Tambah Service</h2>
 
-<form method="post">
-  {% csrf_token %}
-  Nama: <input type="text" name="name"><br>
-  URL/IP: <input type="text" name="url"><br>
-  
-  Type:
-  <select name="service_type">
-    <option value="HTTP">HTTP</option>
-    <option value="PING">PING</option>
-  </select><br>
+<div class="card">
+  <form method="post">
+    {% csrf_token %}
 
-  <button type="submit">Simpan</button>
-</form>
+    <label>Nama Service</label><br>
+    <input type="text" name="name" placeholder="Contoh: Website Diskominfo" required><br><br>
+
+    <label>URL / IP</label><br>
+    <input type="text" name="url" placeholder="https://example.com / 192.168.1.1" required><br><br>
+
+    <label>Tipe Service</label><br>
+    <select name="service_type">
+      <option value="HTTP">HTTP</option>
+      <option value="PING">PING</option>
+    </select><br><br>
+
+    <button type="submit">Simpan</button>
+  </form>
+</div>
+{% endblock %}

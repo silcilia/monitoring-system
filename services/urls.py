@@ -1,10 +1,31 @@
 from django.urls import path
-from . import views
+from .views import (
+    DashboardView,
+    ServiceListView,
+    ServiceCreateView,
+    ContactListView,
+    ContactCreateView,
+    LoadDashboardView,
+    LoadServiceListView,
+    LoadContactListView,
+)
 
 urlpatterns = [
-    path('services/', views.service_list, name='service_list'),
-    path('services/add/', views.service_create, name='service_create'),
+    # ======================
+    # FULL PAGE
+    # ======================
+    path('', DashboardView.as_view(), name='dashboard'),
 
-    path('contacts/', views.contact_list, name='contact_list'),
-    path('contacts/add/', views.contact_create, name='contact_create'),
+    path('services/', ServiceListView.as_view(), name='service_list'),
+    path('services/add/', ServiceCreateView.as_view(), name='service_create'),
+
+    path('contacts/', ContactListView.as_view(), name='contact_list'),
+    path('contacts/add/', ContactCreateView.as_view(), name='contact_create'),
+
+    # ======================
+    # SPA (AJAX LOAD)
+    # ======================
+    path('load-dashboard/', LoadDashboardView.as_view()),
+    path('load-services/', LoadServiceListView.as_view()),
+    path('load-contacts/', LoadContactListView.as_view()),
 ]
