@@ -1,0 +1,166 @@
+{% extends 'services/base.html' %}
+
+{% block content %}
+<div class="page-header">
+    <h2><i class="fas fa-bolt"></i> Power Monitoring</h2>
+    <p>Real-time voltage monitoring system</p>
+</div>
+
+<div class="power-stats">
+    <div class="stat-card-mini">
+        <div class="stat-icon-mini">
+            <i class="fas fa-charging-station"></i>
+        </div>
+        <div class="stat-info-mini">
+            <h4>Current Voltage</h4>
+            <div class="voltage-value" id="currentVoltage">-- V</div>
+        </div>
+    </div>
+    <div class="stat-card-mini">
+        <div class="stat-icon-mini">
+            <i class="fas fa-chart-line"></i>
+        </div>
+        <div class="stat-info-mini">
+            <h4>Average</h4>
+            <div class="voltage-value" id="avgVoltage">-- V</div>
+        </div>
+    </div>
+</div>
+
+<div class="chart-container">
+    <div class="chart-header">
+        <h3><i class="fas fa-waveform"></i> Grafik Tegangan (Voltage)</h3>
+        <div class="chart-controls">
+            <button class="chart-btn" onclick="refreshChart()">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+    </div>
+    <canvas id="voltageChart"></canvas>
+    <div class="chart-note">
+        <i class="fas fa-info-circle"></i> Data diperbarui setiap 5 detik
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+let chart;
+
+// Initialize Chart
+const ctx = document.getElementById('voltageChart').getContext('2d');
+chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [{
+            label: 'Voltage (Volt)',
+            data: [],
+            borderColor: 'rgb(67, 97, 238)',
+            backgroundColor: 'rgba(67, 97, 238, 0.1)',
+            borderWidth: 3,
+            tension: 0.4,
+            fill: true,
+            pointBackgroundColor: 'rgb(67, 97, 238)',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top',
+                labels: {
+                    usePointStyle: true,
+                    boxWidth: 10
+                }
+            },
+            tooltip: {
+                mode: 'index',
+                intersect: false,
+                callbacks: {
+                    label: function(context) {
+                        return `Voltage: ${context.parsed.y} V`;
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                title: {
+                    display: true,
+                    text: 'Voltage (Volt)',
+                    font: {
+                        weight: 'bold'
+                    }
+                },
+                grid: {
+                    color: 'rgba(0, 0, 0, 0.05)'
+                }
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: 'Waktu',
+                    font: {
+                        weight: 'bold'
+                    }
+                },
+                grid: {
+                    display: false
+                }
+            }
+        },
+        interaction: {
+            mode: 'nearest',
+            axis: 'x',
+            intersect: false
+        }
+    }
+});
+
+function loadData() {
+    fetch('/api/power-data/')
+    .then(res => res.json())
+    .then(data => {
+        chart.data.labels = data.labels;
+        chart.data.datasets[0].data = data.voltage;
+        chart.update();
+        
+        // Update current voltage
+        if (data.voltage && data.voltage.length > 0) {
+            const currentVoltage = data.voltage[data.voltage.length - 1];
+            document.getElementById('currentVoltage').innerHTML = currentVoltage + ' V';
+            
+            // Calculate average
+            const sum = data.voltage.reduce((a, b) => a + b, 0);
+            const avg = (sum / data.voltage.length).toFixed(1);
+            document.getElementById('avgVoltage').innerHTML = avg + ' V';
+        }
+    })
+    .catch(error => {
+        console.error('Error loading power data:', error);
+        document.getElementById('currentVoltage').innerHTML = 'Error';
+    });
+}
+
+function refreshChart() {
+    loadData();
+    const btn = document.querySelector('.chart-btn');
+    btn.style.transform = 'rotate(360deg)';
+    setTimeout(() => {
+        btn.style.transform = 'rotate(0deg)';
+    }, 500);
+}
+
+// Initial load
+loadData();
+// Auto refresh every 5 seconds
+setInterval(loadData, 5000);
+</script>
+{% endblock %}

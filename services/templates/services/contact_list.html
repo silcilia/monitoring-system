@@ -1,27 +1,97 @@
 {% extends 'services/base.html' %}
 
 {% block content %}
-<h2>Daftar Contact</h2>
+<div class="page-header">
+    <h2><i class="fas fa-address-book"></i> Daftar Contact</h2>
+    <p>Kelola semua contact WhatsApp untuk notifikasi</p>
+</div>
 
-<a href="/contacts/add/" class="btn">+ Tambah Contact</a>
+<div class="table-toolbar">
+    <a href="/contacts/add/" class="btn-primary">
+        <i class="fas fa-plus"></i> Tambah Contact
+    </a>
+    <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchContact" placeholder="Cari contact..." onkeyup="searchTable()">
+    </div>
+</div>
 
 <div class="card">
-  <table>
-    <tr>
-      <th>Nama</th>
-      <th>Nomor WhatsApp</th>
-    </tr>
-
-    {% for c in contacts %}
-    <tr>
-      <td>{{ c.name }}</td>
-      <td>{{ c.phone_number }}</td>
-    </tr>
-    {% empty %}
-    <tr>
-      <td colspan="2">Belum ada data</td>
-    </tr>
-    {% endfor %}
-  </table>
+    <div class="table-responsive">
+        <table class="modern-table" id="contactTable">
+            <thead>
+                <tr>
+                    <th><i class="fas fa-user"></i> Nama</th>
+                    <th><i class="fab fa-whatsapp"></i> Nomor WhatsApp</th>
+                    <th><i class="fas fa-cog"></i> Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in contacts %}
+                <tr>
+                    <td data-label="Nama">
+                        <div class="contact-name">
+                            <div class="avatar">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <strong>{{ c.name }}</strong>
+                        </div>
+                    </td>
+                    <td data-label="WhatsApp">
+                        <span class="phone-number">
+                            <i class="fab fa-whatsapp"></i> {{ c.phone_number }}
+                        </span>
+                    </td>
+                    <td data-label="Aksi">
+                        <button class="btn-icon" onclick="copyToClipboard('{{ c.phone_number }}')" title="Copy Nomor">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3" class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>Belum ada data contact</p>
+                        <a href="/contacts/add/" class="btn-primary-small">Tambah Contact Sekarang</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="table-footer">
+        <div class="total-count">
+            <i class="fas fa-users"></i> Total Contact: <strong>{{ contacts|length }}</strong>
+        </div>
+    </div>
 </div>
+
+<script>
+function searchTable() {
+    const input = document.getElementById('searchContact');
+    const filter = input.value.toLowerCase();
+    const table = document.getElementById('contactTable');
+    const tr = table.getElementsByTagName('tr');
+    
+    for (let i = 1; i < tr.length; i++) {
+        const tdName = tr[i].getElementsByTagName('td')[0];
+        if (tdName) {
+            const textValue = tdName.textContent || tdName.innerText;
+            if (textValue.toLowerCase().indexOf(filter) > -1) {
+                tr[i].style.display = '';
+            } else {
+                tr[i].style.display = 'none';
+            }
+        }
+    }
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        alert('Nomor WhatsApp berhasil disalin: ' + text);
+    });
+}
+</script>
 {% endblock %}

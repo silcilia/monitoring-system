@@ -1,25 +1,62 @@
 {% extends 'services/base.html' %}
 
 {% block content %}
-<h2>Tambah Service</h2>
+<div class="page-header">
+    <h2><i class="fas fa-plus-circle"></i> Tambah Service</h2>
+    <p>Tambahkan service baru untuk dipantau oleh sistem monitoring</p>
+</div>
 
-<div class="card">
-  <form method="post">
-    {% csrf_token %}
+<div class="form-container">
+    <form method="post" class="modern-form">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="name">
+                <i class="fas fa-tag"></i> Nama Service
+            </label>
+            <input type="text" name="name" id="name" placeholder="Contoh: Website Diskominfo" required>
+            <small class="form-text">Masukkan nama yang mudah diidentifikasi</small>
+        </div>
 
-    <label>Nama Service</label><br>
-    <input type="text" name="name" placeholder="Contoh: Website Diskominfo" required><br><br>
+        <div class="form-group">
+            <label for="url">
+                <i class="fas fa-link"></i> URL / IP Address
+            </label>
+            <input type="text" name="url" id="url" placeholder="https://example.com / 192.168.1.1" required>
+            <small class="form-text">Contoh: https://google.com atau 8.8.8.8</small>
+        </div>
 
-    <label>URL / IP</label><br>
-    <input type="text" name="url" placeholder="https://example.com / 192.168.1.1" required><br><br>
+        <div class="form-group">
+            <label for="service_type">
+                <i class="fas fa-code-branch"></i> Tipe Service
+            </label>
+            <select name="service_type" id="service_type">
+                <option value="HTTP">🌐 HTTP/HTTPS</option>
+                <option value="PING">📡 PING</option>
+            </select>
+            <small class="form-text">
+                <strong>HTTP:</strong> Untuk website/api<br>
+                <strong>PING:</strong> Untuk server/IP address
+            </small>
+        </div>
 
-    <label>Tipe Service</label><br>
-    <select name="service_type">
-      <option value="HTTP">HTTP</option>
-      <option value="PING">PING</option>
-    </select><br><br>
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">
+                <i class="fas fa-save"></i> Simpan Service
+            </button>
+            <a href="/services/" class="btn-secondary">
+                <i class="fas fa-arrow-left"></i> Kembali
+            </a>
+        </div>
+    </form>
+</div>
 
-    <button type="submit">Simpan</button>
-  </form>
+<div class="info-card">
+    <h4><i class="fas fa-lightbulb"></i> Tips Monitoring</h4>
+    <ul>
+        <li><i class="fas fa-check-circle"></i> Pastikan URL/IP dapat diakses</li>
+        <li><i class="fas fa-check-circle"></i> Gunakan tipe HTTP untuk website</li>
+        <li><i class="fas fa-check-circle"></i> Gunakan tipe PING untuk server</li>
+    </ul>
 </div>
 {% endblock %}

@@ -1,37 +1,118 @@
 {% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
-    <title>Monitoring System</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Monitoring System - Dashboard</title>
     <link rel="stylesheet" href="{% static 'services/css/style.css' %}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
+<!-- SIDEBAR -->
 <div class="sidebar">
-    <h2>Monitoring</h2>
-    <ul>
-        <li onclick="loadPage('dashboard', this)" class="active">🏠 Dashboard</li>
-        <li onclick="loadPage('services', this)">🖥 Services</li>
-        <li onclick="loadPage('contacts', this)">📱 Contacts</li>
+    <div class="sidebar-header">
+        <div class="logo-icon">
+            <i class="fas fa-chart-line"></i>
+        </div>
+        <h2>Monitoring<span>System</span></h2>
+    </div>
+
+    <ul class="nav-menu">
+        <li onclick="loadPage('dashboard', this)" class="active">
+            <i class="fas fa-tachometer-alt"></i>
+            <span>Dashboard</span>
+        </li>
+        <li onclick="loadPage('services', this)">
+            <i class="fas fa-server"></i>
+            <span>Services</span>
+        </li>
+        <li onclick="loadPage('contacts', this)">
+            <i class="fas fa-address-book"></i>
+            <span>Contacts</span>
+        </li>
+        <li onclick="window.location.href='/power/'">
+            <i class="fas fa-bolt"></i>
+            <span>Power</span>
+        </li>
     </ul>
+    
+    <div class="sidebar-footer">
+        <div class="user-info">
+            <i class="fas fa-user-circle"></i>
+            <span>Admin User</span>
+        </div>
+    </div>
 </div>
 
+<!-- MAIN CONTENT -->
 <div class="main">
+    <div class="top-bar">
+        <div class="page-title">
+            <h1 id="pageTitle">Dashboard</h1>
+        </div>
+        <div class="top-bar-actions">
+            <div class="datetime" id="datetime"></div>
+            <button class="refresh-btn" onclick="location.reload()">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+    </div>
+    
     <div id="content">
         {% block content %}{% endblock %}
     </div>
 </div>
 
+<!-- JS -->
 <script src="{% static 'services/js/app.js' %}"></script>
 
 <script>
-    // OPTIONAL: hanya load otomatis kalau halaman kosong
+    // Update datetime every second
+    function updateDateTime() {
+        const now = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+        const datetimeElem = document.getElementById('datetime');
+        if (datetimeElem) {
+            datetimeElem.innerHTML = now.toLocaleDateString('id-ID', options);
+        }
+    }
+    
+    updateDateTime();
+    setInterval(updateDateTime, 1000);
+    
+    // Update page title based on active menu
+    function updatePageTitle() {
+        const activeMenu = document.querySelector('.sidebar li.active span');
+        if (activeMenu) {
+            const title = activeMenu.innerText;
+            document.getElementById('pageTitle').innerText = title;
+            document.title = `Monitoring System - ${title}`;
+        }
+    }
+    
+    // Watch for title changes
+    const observer = new MutationObserver(updatePageTitle);
+    observer.observe(document.querySelector('.sidebar'), { subtree: true, childList: true, attributes: true });
+    
+    // Load default page
     window.addEventListener("DOMContentLoaded", function () {
         const content = document.getElementById("content");
         if (content.innerHTML.trim() === "") {
             loadPage('dashboard', document.querySelector('.sidebar li'));
         }
+        updatePageTitle();
     });
+
+    function setActive(el) {
+        document.querySelectorAll('.sidebar li').forEach(li => {
+            li.classList.remove('active');
+        });
+        if (el) el.classList.add('active');
+        updatePageTitle();
+    }
 </script>
 
 </body>

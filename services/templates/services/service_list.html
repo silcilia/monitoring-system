@@ -1,37 +1,147 @@
 {% extends 'services/base.html' %}
 
 {% block content %}
-<h2>Daftar Service</h2>
+<div class="page-header">
+    <h2><i class="fas fa-server"></i> Daftar Service</h2>
+    <p>Kelola semua service yang dipantau oleh sistem</p>
+</div>
 
-<a href="/services/add/" class="btn">+ Tambah Service</a>
+<div class="table-toolbar">
+    <a href="/services/add/" class="btn-primary">
+        <i class="fas fa-plus"></i> Tambah Service
+    </a>
+    <div class="filter-group">
+        <select id="filterStatus" onchange="filterTable()" class="filter-select">
+            <option value="all">Semua Status</option>
+            <option value="UP">UP</option>
+            <option value="DOWN">DOWN</option>
+        </select>
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchService" placeholder="Cari service..." onkeyup="searchTable()">
+        </div>
+    </div>
+</div>
 
 <div class="card">
-  <table>
-    <tr>
-      <th>Nama</th>
-      <th>URL / IP</th>
-      <th>Tipe</th>
-      <th>Status</th>
-    </tr>
-
-    {% for s in services %}
-    <tr>
-      <td>{{ s.name }}</td>
-      <td>{{ s.url }}</td>
-      <td>{{ s.service_type }}</td>
-      <td>
-        {% if s.last_status == "UP" %}
-          <span class="status up">UP</span>
-        {% else %}
-          <span class="status down">DOWN</span>
-        {% endif %}
-      </td>
-    </tr>
-    {% empty %}
-    <tr>
-      <td colspan="4">Belum ada data</td>
-    </tr>
-    {% endfor %}
-  </table>
+    <div class="table-responsive">
+        <table class="modern-table" id="serviceTable">
+            <thead>
+                <tr>
+                    <th><i class="fas fa-tag"></i> Nama Service</th>
+                    <th><i class="fas fa-link"></i> URL / IP</th>
+                    <th><i class="fas fa-code-branch"></i> Tipe</th>
+                    <th><i class="fas fa-chart-simple"></i> Status</th>
+                    <th><i class="fas fa-clock"></i> Last Check</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in services %}
+                <tr data-status="{{ s.last_status }}">
+                    <td data-label="Nama Service">
+                        <div class="service-name">
+                            <div class="service-icon">
+                                {% if s.service_type == "HTTP" %}
+                                    <i class="fas fa-globe"></i>
+                                {% else %}
+                                    <i class="fas fa-network-wired"></i>
+                                {% endif %}
+                            </div>
+                            <strong>{{ s.name }}</strong>
+                        </div>
+                    </td>
+                    <td data-label="URL / IP">
+                        <code class="url-code">{{ s.url }}</code>
+                    </td>
+                    <td data-label="Tipe">
+                        <span class="type-badge {% if s.service_type == 'HTTP' %}http-badge{% else %}ping-badge{% endif %}">
+                            {% if s.service_type == "HTTP" %}🌐 HTTP{% else %}📡 PING{% endif %}
+                        </span>
+                    </td>
+                    <td data-label="Status">
+                        {% if s.last_status == "UP" %}
+                            <span class="status-badge status-up">
+                                <i class="fas fa-circle"></i> UP
+                            </span>
+                        {% else %}
+                            <span class="status-badge status-down">
+                                <i class="fas fa-circle"></i> DOWN
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Last Check">
+                        <span class="timestamp">{{ s.last_check|default:"Belum dicek" }}</span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="empty-state">
+                        <i class="fas fa-database"></i>
+                        <p>Belum ada data service</p>
+                        <a href="/services/add/" class="btn-primary-small">Tambah Service Sekarang</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="table-footer">
+        <div class="total-count">
+            <i class="fas fa-chart-simple"></i> Total Service: <strong>{{ services|length }}</strong>
+        </div>
+        <div class="status-summary-footer">
+            <span class="status-up-text">
+                <i class="fas fa-arrow-up"></i> UP: {{ services|selectattr:"last_status","equalto","UP"|length }}
+            </span>
+            <span class="status-down-text">
+                <i class="fas fa-arrow-down"></i> DOWN: {{ services|selectattr:"last_status","equalto","DOWN"|length }}
+            </span>
+        </div>
+    </div>
 </div>
+
+<script>
+function searchTable() {
+    const input = document.getElementById('searchService');
+    const filter = input.value.toLowerCase();
+    const table = document.getElementById('serviceTable');
+    const tr = table.getElementsByTagName('tr');
+    
+    for (let i = 1; i < tr.length; i++) {
+        const tdName = tr[i].getElementsByTagName('td')[0];
+        if (tdName) {
+            const textValue = tdName.textContent || tdName.innerText;
+            if (textValue.toLowerCase().indexOf(filter) > -1) {
+                tr[i].style.display = '';
+            } else {
+                tr[i].style.display = 'none';
+            }
+        }
+    }
+}
+
+function filterTable() {
+    const filter = document.getElementById('filterStatus').value;
+    const table = document.getElementById('serviceTable');
+    const tr = table.getElementsByTagName('tr');
+    
+    for (let i = 1; i < tr.length; i++) {
+        const statusCell = tr[i].getElementsByTagName('td')[3];
+        if (statusCell) {
+            const status = tr[i].getAttribute('data-status');
+            if (filter === 'all' || status === filter) {
+                tr[i].style.display = '';
+            } else {
+                tr[i].style.display = 'none';
+            }
+        }
+    }
+}
+
+// Auto refresh status every 30 seconds
+setInterval(function() {
+    location.reload();
+}, 30000);
+</script>
 {% endblock %}

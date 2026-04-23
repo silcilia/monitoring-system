@@ -1,19 +1,39 @@
 {% extends 'services/base.html' %}
 
 {% block content %}
-<h2>Tambah Contact</h2>
+<div class="page-header">
+    <h2><i class="fas fa-user-plus"></i> Tambah Contact</h2>
+    <p>Silakan isi form di bawah untuk menambahkan contact baru</p>
+</div>
 
-<div class="card">
-  <form method="post">
-    {% csrf_token %}
+<div class="form-container">
+    <form method="post" class="modern-form">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="name">
+                <i class="fas fa-user"></i> Nama Lengkap
+            </label>
+            <input type="text" name="name" id="name" placeholder="Contoh: Ahmad Fauzi" required>
+            <small class="form-text">Masukkan nama lengkap contact</small>
+        </div>
 
-    <label>Nama</label><br>
-    <input type="text" name="name" required><br><br>
+        <div class="form-group">
+            <label for="phone_number">
+                <i class="fab fa-whatsapp"></i> Nomor WhatsApp
+            </label>
+            <input type="text" name="phone_number" id="phone_number" placeholder="628xxxxxxxxxx" required>
+            <small class="form-text">Format: 628xxxx (tanpa tanda + atau spasi)</small>
+        </div>
 
-    <label>Nomor WhatsApp</label><br>
-    <input type="text" name="phone_number" placeholder="628xxxxxxxxxx" required><br><br>
-
-    <button type="submit">Simpan</button>
-  </form>
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">
+                <i class="fas fa-save"></i> Simpan Contact
+            </button>
+            <a href="/contacts/" class="btn-secondary">
+                <i class="fas fa-arrow-left"></i> Kembali
+            </a>
+        </div>
+    </form>
 </div>
 {% endblock %}

@@ -1,6 +1,7 @@
 from django.views.generic import ListView, CreateView, TemplateView
-from .models import Service, Contact
 from django.urls import reverse_lazy
+from django.http import JsonResponse
+from .models import Service, Contact, PowerLog
 
 
 # ======================
@@ -13,10 +14,22 @@ class DashboardView(TemplateView):
         context = super().get_context_data(**kwargs)
         services = Service.objects.all()
 
-        context['services'] = services
-        context['total'] = services.count()
-        context['up'] = services.filter(last_status='UP').count()
-        context['down'] = services.filter(last_status='DOWN').count()
+        total = services.count()
+        up = services.filter(last_status='UP').count()
+        down = services.filter(last_status='DOWN').count()
+
+        # 🔥 FIX persen (hindari error CSS)
+        percent = 0
+        if total > 0:
+            percent = int((up / total) * 100)
+
+        context.update({
+            'services': services,
+            'total': total,
+            'up': up,
+            'down': down,
+            'percent': percent
+        })
 
         return context
 
@@ -54,8 +67,9 @@ class ContactCreateView(CreateView):
 
 
 # ======================
-# SPA LOAD (PARTIAL VIEW)
+# SPA LOAD (PARTIAL)
 # ======================
+
 class LoadDashboardView(TemplateView):
     template_name = 'services/dashboard.html'
 
@@ -63,10 +77,21 @@ class LoadDashboardView(TemplateView):
         context = super().get_context_data(**kwargs)
         services = Service.objects.all()
 
-        context['services'] = services
-        context['total'] = services.count()
-        context['up'] = services.filter(last_status='UP').count()
-        context['down'] = services.filter(last_status='DOWN').count()
+        total = services.count()
+        up = services.filter(last_status='UP').count()
+        down = services.filter(last_status='DOWN').count()
+
+        percent = 0
+        if total > 0:
+            percent = int((up / total) * 100)
+
+        context.update({
+            'services': services,
+            'total': total,
+            'up': up,
+            'down': down,
+            'percent': percent
+        })
 
         return context
 
@@ -81,3 +106,26 @@ class LoadContactListView(ListView):
     model = Contact
     template_name = 'services/contact_list.html'
     context_object_name = 'contacts'
+
+
+# ======================
+# POWER DASHBOARD
+# ======================
+class PowerView(TemplateView):
+    template_name = 'services/power.html'
+
+
+# ======================
+# API POWER DATA
+# ======================
+def power_data(request):
+    logs = PowerLog.objects.order_by('-timestamp')[:10]
+
+    data = {
+        "labels": [log.timestamp.strftime("%H:%M:%S") for log in logs][::-1],
+        "voltage": [log.voltage for log in logs][::-1],
+        "current": [log.current for log in logs][::-1],
+        "power": [log.power for log in logs][::-1],
+    }
+
+    return JsonResponse(data)
