@@ -2,165 +2,169 @@
 
 {% block content %}
 <div class="page-header">
-    <h2><i class="fas fa-bolt"></i> Power Monitoring</h2>
-    <p>Real-time voltage monitoring system</p>
+    <h2><i class="fas fa-server"></i> Daftar Service</h2>
+    <p>Kelola semua service yang dipantau oleh sistem</p>
 </div>
 
-<div class="power-stats">
-    <div class="stat-card-mini">
-        <div class="stat-icon-mini">
-            <i class="fas fa-charging-station"></i>
-        </div>
-        <div class="stat-info-mini">
-            <h4>Current Voltage</h4>
-            <div class="voltage-value" id="currentVoltage">-- V</div>
-        </div>
-    </div>
-    <div class="stat-card-mini">
-        <div class="stat-icon-mini">
-            <i class="fas fa-chart-line"></i>
-        </div>
-        <div class="stat-info-mini">
-            <h4>Average</h4>
-            <div class="voltage-value" id="avgVoltage">-- V</div>
+<div class="table-toolbar">
+    <a href="/services/add/" class="btn-primary">
+        <i class="fas fa-plus"></i> Tambah Service
+    </a>
+    <div class="filter-group">
+        <select id="filterStatus" onchange="filterTable()" class="filter-select">
+            <option value="all">Semua Status</option>
+            <option value="UP">UP</option>
+            <option value="DOWN">DOWN</option>
+        </select>
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchService" placeholder="Cari service..." onkeyup="searchTable()">
         </div>
     </div>
 </div>
 
-<div class="chart-container">
-    <div class="chart-header">
-        <h3><i class="fas fa-waveform"></i> Grafik Tegangan (Voltage)</h3>
-        <div class="chart-controls">
-            <button class="chart-btn" onclick="refreshChart()">
-                <i class="fas fa-sync-alt"></i> Refresh
-            </button>
+<div class="card">
+    <div class="table-responsive">
+        <table class="modern-table" id="serviceTable">
+            <thead>
+                <tr>
+                    <th>Nama Service</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in services %}
+                <tr data-status="{{ s.last_status }}">
+                    <td data-label="Nama Service">
+                        <div class="service-name">
+                            <div class="service-icon">
+                                {% if s.service_type == "HTTP" %}
+                                    <i class="fas fa-globe"></i>
+                                {% else %}
+                                    <i class="fas fa-network-wired"></i>
+                                {% endif %}
+                            </div>
+                            <strong>{{ s.name }}</strong>
+                            <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
+                                {{ s.url }}
+                            </div>
+                        </div>
+                    </td>
+                    <td data-label="Status">
+                        {% if s.last_status == "UP" %}
+                            <span class="status-badge status-up">
+                                <i class="fas fa-circle"></i> UP
+                            </span>
+                        {% else %}
+                            <span class="status-badge status-down">
+                                <i class="fas fa-circle"></i> DOWN
+                            </span>
+                        {% endif %}
+                        <div style="font-size: 11px; color: #64748b; margin-top: 5px;">
+                            {{ s.last_check|default:"Belum dicek" }}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="2" class="empty-state">
+                        <i class="fas fa-database"></i>
+                        <p>Belum ada data service</p>
+                        <a href="/services/add/" class="btn-primary-small">Tambah Service Sekarang</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="table-footer">
+        <div class="total-count">
+            <i class="fas fa-chart-simple"></i> Total Service: <strong>{{ services|length }}</strong>
+        </div>
+        <div class="status-summary-footer">
+            <span class="status-up-text">
+                <i class="fas fa-arrow-up"></i> UP: 
+                <strong>
+                    {% for s in services %}
+                        {% if s.last_status == "UP" %}
+                            {% with counter=counter|add:1 %}{% endwith %}
+                        {% endif %}
+                    {% endfor %}
+                    {{ services|length|add:0 }}
+                </strong>
+            </span>
+            <span class="status-up-text">
+                <i class="fas fa-arrow-up"></i> UP: 
+                <strong>
+                    {{ services|dictsort:"last_status"|length }}
+                </strong>
+            </span>
+            <span class="status-up-text">
+                <i class="fas fa-arrow-up"></i> UP: 
+                <strong>
+                    {% with up_count=0 %}
+                        {% for s in services %}
+                            {% if s.last_status == "UP" %}
+                                {% with up_count=up_count|add:1 %}{% endwith %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ up_count }}
+                    {% endwith %}
+                </strong>
+            </span>
+            <span class="status-down-text">
+                <i class="fas fa-arrow-down"></i> DOWN: 
+                {% with down_count=0 %}
+                    {% for s in services %}
+                        {% if s.last_status == "DOWN" %}
+                            {% with down_count=down_count|add:1 %}{% endwith %}
+                        {% endif %}
+                    {% endfor %}
+                {% endwith %}
+            </span>
         </div>
     </div>
-    <canvas id="voltageChart"></canvas>
-    <div class="chart-note">
-        <i class="fas fa-info-circle"></i> Data diperbarui setiap 5 detik
-    </div>
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-let chart;
-
-// Initialize Chart
-const ctx = document.getElementById('voltageChart').getContext('2d');
-chart = new Chart(ctx, {
-    type: 'line',
-    data: {
-        labels: [],
-        datasets: [{
-            label: 'Voltage (Volt)',
-            data: [],
-            borderColor: 'rgb(67, 97, 238)',
-            backgroundColor: 'rgba(67, 97, 238, 0.1)',
-            borderWidth: 3,
-            tension: 0.4,
-            fill: true,
-            pointBackgroundColor: 'rgb(67, 97, 238)',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            pointRadius: 4,
-            pointHoverRadius: 6
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'top',
-                labels: {
-                    usePointStyle: true,
-                    boxWidth: 10
-                }
-            },
-            tooltip: {
-                mode: 'index',
-                intersect: false,
-                callbacks: {
-                    label: function(context) {
-                        return `Voltage: ${context.parsed.y} V`;
-                    }
-                }
+function searchTable() {
+    const input = document.getElementById('searchService');
+    const filter = input.value.toLowerCase();
+    const table = document.getElementById('serviceTable');
+    const tr = table.getElementsByTagName('tr');
+    
+    for (let i = 1; i < tr.length; i++) {
+        const tdName = tr[i].getElementsByTagName('td')[0];
+        if (tdName) {
+            const textValue = tdName.textContent || tdName.innerText;
+            if (textValue.toLowerCase().indexOf(filter) > -1) {
+                tr[i].style.display = '';
+            } else {
+                tr[i].style.display = 'none';
             }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                title: {
-                    display: true,
-                    text: 'Voltage (Volt)',
-                    font: {
-                        weight: 'bold'
-                    }
-                },
-                grid: {
-                    color: 'rgba(0, 0, 0, 0.05)'
-                }
-            },
-            x: {
-                title: {
-                    display: true,
-                    text: 'Waktu',
-                    font: {
-                        weight: 'bold'
-                    }
-                },
-                grid: {
-                    display: false
-                }
-            }
-        },
-        interaction: {
-            mode: 'nearest',
-            axis: 'x',
-            intersect: false
         }
     }
-});
+}
 
-function loadData() {
-    fetch('/api/power-data/')
-    .then(res => res.json())
-    .then(data => {
-        chart.data.labels = data.labels;
-        chart.data.datasets[0].data = data.voltage;
-        chart.update();
-        
-        // Update current voltage
-        if (data.voltage && data.voltage.length > 0) {
-            const currentVoltage = data.voltage[data.voltage.length - 1];
-            document.getElementById('currentVoltage').innerHTML = currentVoltage + ' V';
-            
-            // Calculate average
-            const sum = data.voltage.reduce((a, b) => a + b, 0);
-            const avg = (sum / data.voltage.length).toFixed(1);
-            document.getElementById('avgVoltage').innerHTML = avg + ' V';
+function filterTable() {
+    const filter = document.getElementById('filterStatus').value;
+    const table = document.getElementById('serviceTable');
+    const tr = table.getElementsByTagName('tr');
+    
+    for (let i = 1; i < tr.length; i++) {
+        const status = tr[i].getAttribute('data-status');
+        if (filter === 'all' || status === filter) {
+            tr[i].style.display = '';
+        } else {
+            tr[i].style.display = 'none';
         }
-    })
-    .catch(error => {
-        console.error('Error loading power data:', error);
-        document.getElementById('currentVoltage').innerHTML = 'Error';
-    });
+    }
 }
 
-function refreshChart() {
-    loadData();
-    const btn = document.querySelector('.chart-btn');
-    btn.style.transform = 'rotate(360deg)';
-    setTimeout(() => {
-        btn.style.transform = 'rotate(0deg)';
-    }, 500);
-}
-
-// Initial load
-loadData();
-// Auto refresh every 5 seconds
-setInterval(loadData, 5000);
+// Auto refresh status every 30 seconds (opsional)
+// setInterval(function() {
+//     location.reload();
+// }, 30000);
 </script>
 {% endblock %}

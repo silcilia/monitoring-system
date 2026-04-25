@@ -28,11 +28,8 @@
         <table class="modern-table" id="serviceTable">
             <thead>
                 <tr>
-                    <th><i class="fas fa-tag"></i> Nama Service</th>
-                    <th><i class="fas fa-link"></i> URL / IP</th>
-                    <th><i class="fas fa-code-branch"></i> Tipe</th>
-                    <th><i class="fas fa-chart-simple"></i> Status</th>
-                    <th><i class="fas fa-clock"></i> Last Check</th>
+                    <th>Nama Service</th>
+                    <th>Status</th>
                 </tr>
             </thead>
             <tbody>
@@ -48,15 +45,10 @@
                                 {% endif %}
                             </div>
                             <strong>{{ s.name }}</strong>
+                            <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
+                                {{ s.url }}
+                            </div>
                         </div>
-                    </td>
-                    <td data-label="URL / IP">
-                        <code class="url-code">{{ s.url }}</code>
-                    </td>
-                    <td data-label="Tipe">
-                        <span class="type-badge {% if s.service_type == 'HTTP' %}http-badge{% else %}ping-badge{% endif %}">
-                            {% if s.service_type == "HTTP" %}🌐 HTTP{% else %}📡 PING{% endif %}
-                        </span>
                     </td>
                     <td data-label="Status">
                         {% if s.last_status == "UP" %}
@@ -68,14 +60,14 @@
                                 <i class="fas fa-circle"></i> DOWN
                             </span>
                         {% endif %}
-                    </td>
-                    <td data-label="Last Check">
-                        <span class="timestamp">{{ s.last_check|default:"Belum dicek" }}</span>
+                        <div style="font-size: 11px; color: #64748b; margin-top: 5px;">
+                            {{ s.last_check|default:"Belum dicek" }}
+                        </div>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="empty-state">
+                    <td colspan="2" class="empty-state">
                         <i class="fas fa-database"></i>
                         <p>Belum ada data service</p>
                         <a href="/services/add/" class="btn-primary-small">Tambah Service Sekarang</a>
@@ -91,12 +83,23 @@
             <i class="fas fa-chart-simple"></i> Total Service: <strong>{{ services|length }}</strong>
         </div>
         <div class="status-summary-footer">
-            <span class="status-up-text">
-                <i class="fas fa-arrow-up"></i> UP: {{ services|selectattr:"last_status","equalto","UP"|length }}
-            </span>
-            <span class="status-down-text">
-                <i class="fas fa-arrow-down"></i> DOWN: {{ services|selectattr:"last_status","equalto","DOWN"|length }}
-            </span>
+            {% with up_count=0 down_count=0 %}
+                {% for s in services %}
+                    {% if s.last_status == "UP" %}
+                        {% with up_count=up_count|add:1 %}{% endwith %}
+                    {% elif s.last_status == "DOWN" %}
+                        {% with down_count=down_count|add:1 %}{% endwith %}
+                    {% endif %}
+                {% endfor %}
+                <span class="status-up-text">
+                    <i class="fas fa-arrow-up"></i> UP: 
+                    <strong>{{ up_count }}</strong>
+                </span>
+                <span class="status-down-text">
+                    <i class="fas fa-arrow-down"></i> DOWN: 
+                    <strong>{{ down_count }}</strong>
+                </span>
+            {% endwith %}
         </div>
     </div>
 </div>
@@ -127,21 +130,13 @@ function filterTable() {
     const tr = table.getElementsByTagName('tr');
     
     for (let i = 1; i < tr.length; i++) {
-        const statusCell = tr[i].getElementsByTagName('td')[3];
-        if (statusCell) {
-            const status = tr[i].getAttribute('data-status');
-            if (filter === 'all' || status === filter) {
-                tr[i].style.display = '';
-            } else {
-                tr[i].style.display = 'none';
-            }
+        const status = tr[i].getAttribute('data-status');
+        if (filter === 'all' || status === filter) {
+            tr[i].style.display = '';
+        } else {
+            tr[i].style.display = 'none';
         }
     }
 }
-
-// Auto refresh status every 30 seconds
-setInterval(function() {
-    location.reload();
-}, 30000);
 </script>
 {% endblock %}

@@ -21,9 +21,8 @@
         <table class="modern-table" id="contactTable">
             <thead>
                 <tr>
-                    <th><i class="fas fa-user"></i> Nama</th>
-                    <th><i class="fab fa-whatsapp"></i> Nomor WhatsApp</th>
-                    <th><i class="fas fa-cog"></i> Aksi</th>
+                    <th>Nama</th>
+                    <th>Nomor WhatsApp</th>
                 </tr>
             </thead>
             <tbody>
@@ -42,15 +41,10 @@
                             <i class="fab fa-whatsapp"></i> {{ c.phone_number }}
                         </span>
                     </td>
-                    <td data-label="Aksi">
-                        <button class="btn-icon" onclick="copyToClipboard('{{ c.phone_number }}')" title="Copy Nomor">
-                            <i class="fas fa-copy"></i>
-                        </button>
-                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="3" class="empty-state">
+                    <td colspan="2" class="empty-state">
                         <i class="fas fa-inbox"></i>
                         <p>Belum ada data contact</p>
                         <a href="/contacts/add/" class="btn-primary-small">Tambah Contact Sekarang</a>

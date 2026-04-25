@@ -1,12 +1,9 @@
-/**
- * Enhanced app.js with better loading states and error handling
- * Without changing core logic
- */
-
 function loadPage(page, el = null) {
     const content = document.getElementById('content');
 
-    // Enhanced loading state dengan spinner
+    if (!content) return;
+
+    // Loading state
     content.innerHTML = `
         <div class="loading-container">
             <div class="loading-spinner"></div>
@@ -23,43 +20,28 @@ function loadPage(page, el = null) {
             return response.text();
         })
         .then(html => {
-            // Fade in effect
-            content.style.opacity = '0';
             content.innerHTML = html;
-            
-            // Trigger fade in
-            setTimeout(() => {
-                content.style.transition = 'opacity 0.3s ease';
-                content.style.opacity = '1';
-            }, 50);
-            
+
+            // Jalankan script yang ada di dalam HTML yang di-load
+            const scripts = content.querySelectorAll("script");
+            scripts.forEach(oldScript => {
+                const newScript = document.createElement("script");
+                newScript.textContent = oldScript.textContent;
+                document.body.appendChild(newScript);
+                oldScript.remove();
+            });
+
             // Set active menu
             document.querySelectorAll('.sidebar li').forEach(li => {
                 li.classList.remove('active');
             });
-
+            
             if (el) {
                 el.classList.add('active');
-            } else {
-                // Find matching menu based on page
-                const menuItems = document.querySelectorAll('.sidebar li span');
-                menuItems.forEach(item => {
-                    if (item.innerText.toLowerCase() === page.toLowerCase()) {
-                        item.parentElement.classList.add('active');
-                    }
-                });
             }
 
-            // Update URL (SPA feel)
+            // Update URL
             history.pushState({ page: page }, "", `/${page}/`);
-            
-            // Trigger any page-specific initialization
-            if (typeof pageLoaded === 'function') {
-                pageLoaded(page);
-            }
-            
-            // Scroll to top on page change
-            window.scrollTo({ top: 0, behavior: 'smooth' });
         })
         .catch(error => {
             console.error("ERROR:", error);
@@ -73,63 +55,26 @@ function loadPage(page, el = null) {
                     </button>
                 </div>
             `;
-            content.style.opacity = '1';
         });
 }
 
-/**
- * Handle back button
- */
+// Handle back button
 window.onpopstate = function (event) {
     if (event.state && event.state.page) {
         loadPage(event.state.page);
     } else {
-        // Default to dashboard
-        loadPage('dashboard');
+        const firstMenu = document.querySelector('.sidebar li');
+        loadPage('dashboard', firstMenu);
     }
 };
 
-/**
- * Auto load dashboard first
- */
+// Auto load dashboard
 window.addEventListener("DOMContentLoaded", function () {
     const content = document.getElementById("content");
-    
-    // Check if content is empty or has only default Django block
-    if (!content.innerHTML.trim() || content.innerHTML.trim() === "{% block content %}{% endblock %}") {
+    if (content && (!content.innerHTML.trim() || content.innerHTML.trim() === "")) {
         const firstMenu = document.querySelector('.sidebar li');
-        if (firstMenu) {
+        if (firstMenu && typeof loadPage === 'function') {
             loadPage('dashboard', firstMenu);
         }
     }
 });
-
-/**
- * Optional: Add page-specific initialization functions
- */
-function pageLoaded(page) {
-    console.log(`Page loaded: ${page}`);
-    
-    // Add animation to elements
-    const cards = document.querySelectorAll('.card, .stat-card, table');
-    cards.forEach((card, index) => {
-        card.style.animation = `fadeInUp 0.5s ease ${index * 0.05}s forwards`;
-        card.style.opacity = '0';
-    });
-}
-
-// Add CSS animation keyframes dynamically
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-`;
-document.head.appendChild(style);

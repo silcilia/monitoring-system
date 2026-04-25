@@ -5,7 +5,7 @@ from .models import Service, Contact, PowerLog
 
 
 # ======================
-# DASHBOARD (FULL PAGE)
+# DASHBOARD
 # ======================
 class DashboardView(TemplateView):
     template_name = 'services/dashboard.html'
@@ -18,10 +18,7 @@ class DashboardView(TemplateView):
         up = services.filter(last_status='UP').count()
         down = services.filter(last_status='DOWN').count()
 
-        # 🔥 FIX persen (hindari error CSS)
-        percent = 0
-        if total > 0:
-            percent = int((up / total) * 100)
+        percent = int((up / total) * 100) if total > 0 else 0
 
         context.update({
             'services': services,
@@ -30,8 +27,11 @@ class DashboardView(TemplateView):
             'down': down,
             'percent': percent
         })
-
         return context
+
+
+class LoadDashboardView(DashboardView):
+    pass
 
 
 # ======================
@@ -41,6 +41,10 @@ class ServiceListView(ListView):
     model = Service
     template_name = 'services/service_list.html'
     context_object_name = 'services'
+
+
+class LoadServiceListView(ServiceListView):
+    pass
 
 
 class ServiceCreateView(CreateView):
@@ -59,6 +63,10 @@ class ContactListView(ListView):
     context_object_name = 'contacts'
 
 
+class LoadContactListView(ContactListView):
+    pass
+
+
 class ContactCreateView(CreateView):
     model = Contact
     template_name = 'services/contact_form.html'
@@ -67,65 +75,18 @@ class ContactCreateView(CreateView):
 
 
 # ======================
-# SPA LOAD (PARTIAL)
-# ======================
-
-class LoadDashboardView(TemplateView):
-    template_name = 'services/dashboard.html'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        services = Service.objects.all()
-
-        total = services.count()
-        up = services.filter(last_status='UP').count()
-        down = services.filter(last_status='DOWN').count()
-
-        percent = 0
-        if total > 0:
-            percent = int((up / total) * 100)
-
-        context.update({
-            'services': services,
-            'total': total,
-            'up': up,
-            'down': down,
-            'percent': percent
-        })
-
-        return context
-
-
-class LoadServiceListView(ListView):
-    model = Service
-    template_name = 'services/service_list.html'
-    context_object_name = 'services'
-
-
-class LoadContactListView(ListView):
-    model = Contact
-    template_name = 'services/contact_list.html'
-    context_object_name = 'contacts'
-
-
-# ======================
-# POWER DASHBOARD
+# POWER
 # ======================
 class PowerView(TemplateView):
     template_name = 'services/power.html'
 
 
-# ======================
-# API POWER DATA
-# ======================
 def power_data(request):
     logs = PowerLog.objects.order_by('-timestamp')[:10]
 
-    data = {
-        "labels": [log.timestamp.strftime("%H:%M:%S") for log in logs][::-1],
-        "voltage": [log.voltage for log in logs][::-1],
-        "current": [log.current for log in logs][::-1],
-        "power": [log.power for log in logs][::-1],
-    }
-
-    return JsonResponse(data)
+    return JsonResponse({
+        "labels": [l.timestamp.strftime("%H:%M:%S") for l in logs][::-1],
+        "voltage": [l.voltage for l in logs][::-1],
+        "current": [l.current for l in logs][::-1],
+        "power": [l.power for l in logs][::-1],
+    })
