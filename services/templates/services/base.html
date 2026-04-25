@@ -23,33 +23,35 @@
     </div>
 
     <ul class="nav-menu">
-        <li class="active">
-            <a href="/" style="color:inherit; text-decoration:none;">
+
+        <li class="{% if request.path == '/' %}active{% endif %}">
+            <a href="/">
                 <i class="fas fa-tachometer-alt"></i>
                 <span>Dashboard</span>
             </a>
         </li>
 
-        <li>
-            <a href="/services/" style="color:inherit; text-decoration:none;">
+        <li class="{% if '/services' in request.path %}active{% endif %}">
+            <a href="/services/">
                 <i class="fas fa-server"></i>
                 <span>Services</span>
             </a>
         </li>
 
-        <li>
-            <a href="/contacts/" style="color:inherit; text-decoration:none;">
+        <li class="{% if '/contacts' in request.path %}active{% endif %}">
+            <a href="/contacts/">
                 <i class="fas fa-address-book"></i>
                 <span>Contacts</span>
             </a>
         </li>
 
-        <li>
-            <a href="/power/" style="color:inherit; text-decoration:none;">
+        <li class="{% if '/power' in request.path %}active{% endif %}">
+            <a href="/power/">
                 <i class="fas fa-bolt"></i>
                 <span>Power</span>
             </a>
         </li>
+
     </ul>
 
     <div class="sidebar-footer">

@@ -80,6 +80,18 @@ class ContactCreateView(CreateView):
 class PowerView(TemplateView):
     template_name = 'services/power.html'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['logs'] = PowerLog.objects.order_by('-timestamp')[:10]
+        return context
+
+
+class PowerCreateView(CreateView):
+    model = PowerLog
+    template_name = 'services/power_form.html'
+    fields = ['voltage', 'current', 'power']
+    success_url = reverse_lazy('power')
+
 
 def power_data(request):
     logs = PowerLog.objects.order_by('-timestamp')[:10]
