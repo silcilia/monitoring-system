@@ -1,59 +1,297 @@
+
 {% extends 'services/base.html' %}
 
 {% block content %}
-<div class="page-header">
-    <h2><i class="fas fa-chart-line"></i> Dashboard Monitoring</h2>
-    <p>Ringkasan status semua service</p>
-</div>
-
-<!-- STAT CARD -->
-<div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-icon"><i class="fas fa-server"></i></div>
-        <div class="stat-info">
-            <h3>Total</h3>
-            <div class="stat-number">{{ total }}</div>
-        </div>
-    </div>
-
-    <div class="stat-card success">
-        <div class="stat-icon"><i class="fas fa-check"></i></div>
-        <div class="stat-info">
-            <h3>UP</h3>
-            <div class="stat-number">{{ up }}</div>
-        </div>
-    </div>
-
-    <div class="stat-card danger">
-        <div class="stat-icon"><i class="fas fa-times"></i></div>
-        <div class="stat-info">
-            <h3>DOWN</h3>
-            <div class="stat-number">{{ down }}</div>
-        </div>
-    </div>
-</div>
-
-<!-- PROGRESS -->
-<div class="card">
-    <h3>Uptime</h3>
-
-    <!-- SIMPAN VALUE DI DATA ATTRIBUTE -->
-    <div class="progress-bar">
-        <div id="progressFill" 
-             class="progress-fill" 
-             data-percent="{{ percent }}">
-        </div>
-    </div>
-
-    <p id="progressText">{{ percent }}%</p>
-</div>
 
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-    const el = document.getElementById("progressFill");
-    const percent = el.getAttribute("data-percent") || 0;
+const token = localStorage.getItem('access');
 
-    el.style.width = percent + "%";
+if (!token) {
+    window.location.href = '/login/';
+}
+</script>
+
+<style>
+/* ================= HEADER ================= */
+.page-header{
+    margin-bottom:2rem;
+    position:relative;
+}
+.page-header::before{
+    content:'';
+    position:absolute;
+    top:-20px;
+    left:-20px;
+    right:-20px;
+    bottom:-20px;
+    background:linear-gradient(135deg,rgba(67,97,238,.05),rgba(67,97,238,.02));
+    border-radius:1.5rem;
+    z-index:-1;
+}
+.header-content{
+    background:linear-gradient(135deg,#ffffff,#f8fafc);
+    border-radius:1rem;
+    padding:1.5rem 2rem;
+    box-shadow:0 4px 15px rgba(0,0,0,.05);
+    border:1px solid rgba(67,97,238,.1);
+}
+.title-text{
+    font-size:1.75rem;
+    font-weight:800;
+    background:linear-gradient(135deg,#1e293b,#4361ee);
+    -webkit-background-clip:text;
+    color:transparent;
+    margin-bottom:.5rem;
+}
+.header-content p{
+    margin:0;
+    color:#64748b;
+}
+
+/* ================= GRID ================= */
+.stats-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+    gap:1rem;
+    margin-bottom:2rem;
+}
+.stat-card,.card{
+    background:#fff;
+    border-radius:1rem;
+    padding:1.5rem;
+    box-shadow:0 1px 3px rgba(0,0,0,.08);
+}
+.stat-card h3,.card h3{
+    margin:0 0 1rem 0;
+    font-size:1rem;
+}
+.stat-card h1{
+    margin:0;
+    font-size:2.3rem;
+}
+
+/* ================= PROGRESS ================= */
+.percent-text{
+    font-size:2.5rem;
+    font-weight:800;
+    text-align:center;
+    margin-bottom:1rem;
+}
+.progress-bar{
+    background:#e5e7eb;
+    height:28px;
+    border-radius:8px;
+    overflow:hidden;
+}
+.progress-fill{
+    height:100%;
+    width:0%;
+    color:#fff;
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    padding-right:10px;
+    transition:all .8s ease;
+}
+
+/* ================= CHART ================= */
+.chart-container{
+    position:relative;
+    height:350px;
+}
+
+/* ================= SYSTEM ================= */
+.system-card{
+    background:linear-gradient(135deg,#667eea,#764ba2);
+    color:#fff;
+    border-radius:1rem;
+    padding:1.5rem;
+}
+.system-status{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:1rem;
+}
+.status-indicator{
+    background:rgba(255,255,255,.12);
+    padding:.8rem 1rem;
+    border-radius:.7rem;
+}
+.led-green{
+    width:12px;
+    height:12px;
+    border-radius:50%;
+    background:#06d6a0;
+    display:inline-block;
+    margin-right:8px;
+    box-shadow:0 0 8px #06d6a0;
+}
+
+@media(max-width:768px){
+    .title-text{font-size:1.3rem;}
+    .chart-container{height:260px;}
+}
+</style>
+
+<!-- ================= HEADER ================= -->
+<div class="page-header">
+    <div class="header-content">
+        <div class="title-text">
+            <i class="fas fa-chart-line"></i>
+            Dashboard Monitoring
+        </div>
+        <p>Ringkasan status service dan sistem monitoring</p>
+    </div>
+</div>
+
+<!-- ================= STATS ================= -->
+<div class="stats-grid">
+
+    <div class="stat-card">
+        <h3><i class="fas fa-server"></i> Total Services</h3>
+        <h1>{{ total }}</h1>
+        <small>Service terdaftar</small>
+    </div>
+
+    <div class="stat-card">
+        <h3><i class="fas fa-check-circle"></i> Services UP</h3>
+        <h1 style="color:#10b981">{{ up }}</h1>
+        <small>Berjalan normal</small>
+    </div>
+
+    <div class="stat-card">
+        <h3><i class="fas fa-times-circle"></i> Services DOWN</h3>
+        <h1 style="color:#ef4444">{{ down }}</h1>
+        <small>Perlu perhatian</small>
+    </div>
+
+</div>
+
+<!-- ================= UPTIME ================= -->
+<div class="card">
+    <h3><i class="fas fa-chart-line"></i> Uptime Rate</h3>
+
+    <div class="percent-text">{{ percent }}%</div>
+
+    <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" data-percent="{{ percent }}">
+            {{ percent }}%
+        </div>
+    </div>
+</div>
+
+<!-- ================= CHART ================= -->
+<div class="card">
+    <h3><i class="fas fa-chart-area"></i> Tren Uptime 7 Hari Terakhir</h3>
+
+    <div class="chart-container">
+        <canvas id="weeklyChart"></canvas>
+    </div>
+</div>
+
+<!-- ================= SYSTEM ================= -->
+<div class="system-card">
+    <h3><i class="fas fa-microchip"></i> Status Sistem Monitoring</h3>
+
+    <div class="system-status">
+        <div class="status-indicator">
+            <span class="led-green"></span>
+            Sistem Monitoring Aktif
+        </div>
+
+        <div class="status-indicator">
+            <span class="led-green"></span>
+            Auto Check Setiap 5 Menit
+        </div>
+
+        <div class="status-indicator">
+            <span class="led-green"></span>
+            Notifikasi WhatsApp & Email
+        </div>
+    </div>
+</div>
+
+<!-- ================= SCRIPT ================= -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- supaya django aman dibaca javascript -->
+{{ labels|json_script:"chart-labels" }}
+{{ data|json_script:"chart-data" }}
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+
+    /* ================= PROGRESS ================= */
+    const progress = document.getElementById("progressFill");
+    const percent = parseFloat(progress.dataset.percent) || 0;
+
+    progress.style.width = percent + "%";
+
+    if(percent >= 90){
+        progress.style.background = "linear-gradient(90deg,#06d6a0,#059669)";
+    }else if(percent >= 70){
+        progress.style.background = "linear-gradient(90deg,#facc15,#eab308)";
+    }else{
+        progress.style.background = "linear-gradient(90deg,#ef4444,#dc2626)";
+    }
+
+    /* ================= AMBIL DATA DARI DJANGO ================= */
+    const labels = JSON.parse(
+        document.getElementById("chart-labels").textContent
+    );
+
+    const dataValues = JSON.parse(
+        document.getElementById("chart-data").textContent
+    );
+
+    /* ================= CHART ================= */
+    const ctx = document.getElementById("weeklyChart").getContext("2d");
+
+    new Chart(ctx,{
+        type:"line",
+        data:{
+            labels:labels,
+            datasets:[{
+                label:"Uptime (%)",
+                data:dataValues,
+                borderWidth:3,
+                tension:0.4,
+                fill:true,
+                borderColor:"#4361ee",
+                backgroundColor:"rgba(67,97,238,.12)",
+                pointRadius:5,
+                pointHoverRadius:7
+            }]
+        },
+        options:{
+            responsive:true,
+            maintainAspectRatio:false,
+            plugins:{
+                legend:{
+                    display:true,
+                    position:"top"
+                }
+            },
+            scales:{
+                y:{
+                    min:0,
+                    max:100,
+                    ticks:{
+                        callback:function(value){
+                            return value + "%";
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    /* ================= AUTO REFRESH ================= */
+    setInterval(function(){
+        location.reload();
+    },30000);
+
 });
 </script>
 

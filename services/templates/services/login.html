@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - Monitoring System</title>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #4361ee, #3a0ca3);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-box {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 350px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .login-box h2 {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.3rem;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 0.6rem;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 0.7rem;
+            background: #4361ee;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn-login:disabled {
+            background: #999;
+            cursor: not-allowed;
+        }
+
+        .btn-login:hover:not(:disabled) {
+            background: #3a56d4;
+        }
+
+        .error {
+            color: red;
+            text-align: center;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-box">
+    <h2><i class="fas fa-lock"></i> Login</h2>
+
+    <div class="input-group">
+        <label>Username</label>
+        <input type="text" id="username">
+    </div>
+
+    <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="password">
+    </div>
+
+    <button class="btn-login" id="loginBtn" onclick="login()">Login</button>
+
+    <div class="loading" id="loadingText" style="display:none;">
+        <i class="fas fa-spinner fa-spin"></i> Loading...
+    </div>
+
+    <div class="error" id="errorMsg"></div>
+</div>
+
+<script>
+
+function login() {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value.trim();
+
+    const btn = document.getElementById('loginBtn');
+    const loading = document.getElementById('loadingText');
+
+    // 🔥 VALIDASI
+    if (!username || !password) {
+        return showError("Username & Password wajib diisi");
+    }
+
+    // 🔥 LOADING STATE
+    btn.disabled = true;
+    loading.style.display = 'block';
+    hideError();
+
+    fetch('/api/login/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username, password })
+    })
+    .then(async res => {
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(data.error || "Login gagal");
+        }
+
+        return data;
+    })
+    .then(data => {
+
+        // 🔥 SIMPAN TOKEN
+        localStorage.setItem('access', data.access);
+
+        if (data.refresh) {
+            localStorage.setItem('refresh', data.refresh);
+        }
+
+        // 🔥 REDIRECT
+        window.location.href = '/dashboard/';
+    })
+    .catch(err => {
+        showError(err.message);
+    })
+    .finally(() => {
+        btn.disabled = false;
+        loading.style.display = 'none';
+    });
+}
+
+
+// ENTER KEY SUPPORT
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        login();
+    }
+});
+
+function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.innerText = msg;
+    el.style.display = 'block';
+}
+
+function hideError() {
+    const el = document.getElementById('errorMsg');
+    el.style.display = 'none';
+}
+
+</script>
+
+</body>
+</html>

@@ -1,39 +1,456 @@
 {% extends 'services/base.html' %}
 
 {% block content %}
+
+<style>
+    /* ==================== */
+    /* HEADER YANG DIPERBAGUS */
+    /* ==================== */
+    .page-header {
+        margin-bottom: 2rem;
+        position: relative;
+    }
+
+    .page-header::before {
+        content: '';
+        position: absolute;
+        top: -20px;
+        left: -20px;
+        right: -20px;
+        bottom: -20px;
+        background: linear-gradient(135deg, rgba(67, 97, 238, 0.05) 0%, rgba(67, 97, 238, 0.02) 100%);
+        border-radius: 1.5rem;
+        z-index: -1;
+    }
+
+    .header-content {
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        border-radius: 1rem;
+        padding: 1.5rem 2rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(67, 97, 238, 0.1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Efek dekorasi */
+    .header-content::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 150px;
+        height: 150px;
+        background: radial-gradient(circle, rgba(67, 97, 238, 0.1) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+
+    .header-content::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100px;
+        height: 100px;
+        background: radial-gradient(circle, rgba(6, 214, 160, 0.08) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+
+    .page-header h2 {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin: 0 0 0.75rem 0;
+        position: relative;
+        z-index: 1;
+    }
+
+    .page-header h2 i {
+        font-size: 2rem;
+        background: linear-gradient(135deg, #4361ee, #3a56d4);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        animation: pulse-icon 2s infinite;
+    }
+
+    .title-text {
+        background: linear-gradient(135deg, #1e293b, #4361ee);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        font-size: 1.75rem;
+        font-weight: 800;
+    }
+
+    .page-header p {
+        margin: 0;
+        position: relative;
+        z-index: 1;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .description-text {
+        color: #64748b;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .description-text i {
+        color: #4361ee;
+        font-size: 1rem;
+    }
+
+    /* Animasi */
+    @keyframes pulse-icon {
+        0%, 100% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.05);
+        }
+    }
+
+    /* ==================== */
+    /* FORM CONTAINER */
+    /* ==================== */
+    .form-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 1rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .modern-form {
+        padding: 2rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.75rem;
+    }
+
+    .form-group label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .form-group label i {
+        width: 20px;
+        color: #4361ee;
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        background: #f8fafc;
+    }
+
+    .form-group input:focus {
+        outline: none;
+        border-color: #4361ee;
+        background: white;
+        box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+    }
+
+    .form-group input:hover {
+        border-color: #94a3b8;
+    }
+
+    .form-group input:valid {
+        border-color: #10b981;
+    }
+
+    /* Help text styling */
+    .form-text {
+        display: block;
+        margin-top: 0.5rem;
+        font-size: 0.75rem;
+        color: #64748b;
+    }
+
+    .form-text i {
+        margin-right: 0.25rem;
+        color: #4361ee;
+    }
+
+    /* Error styling */
+    .errorlist {
+        background: #fee2e2;
+        color: #dc2626;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        list-style: none;
+        font-size: 0.875rem;
+        border-left: 4px solid #dc2626;
+    }
+
+    /* ==================== */
+    /* BUTTONS */
+    /* ==================== */
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #4361ee, #3a56d4);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+        background: linear-gradient(135deg, #3a56d4, #2c3e9e);
+    }
+
+    .btn-secondary {
+        background: #f1f5f9;
+        color: #475569;
+        padding: 0.75rem 1.5rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-secondary:hover {
+        background: #e2e8f0;
+        color: #1e293b;
+        transform: translateY(-1px);
+    }
+
+    /* ==================== */
+    /* INFO CARD (Opsional) */
+    /* ==================== */
+    .info-card {
+        max-width: 800px;
+        margin: 1.5rem auto 0;
+        background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+        border: 1px solid #bbf7d0;
+        border-radius: 1rem;
+        padding: 1rem 1.5rem;
+    }
+
+    .info-card p {
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #166534;
+        font-size: 0.875rem;
+    }
+
+    .info-card i {
+        color: #22c55e;
+    }
+
+    /* ==================== */
+    /* ANIMATIONS */
+    /* ==================== */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* ==================== */
+    /* RESPONSIVE */
+    /* ==================== */
+    @media (max-width: 768px) {
+        .modern-form {
+            padding: 1.5rem;
+        }
+
+        .form-actions {
+            flex-direction: column;
+        }
+
+        .btn-primary, .btn-secondary {
+            justify-content: center;
+        }
+
+        .header-content {
+            padding: 1rem;
+        }
+
+        .title-text {
+            font-size: 1.25rem;
+        }
+
+        .page-header h2 i {
+            font-size: 1.5rem;
+        }
+    }
+</style>
+
+<!-- ========================= -->
+<!-- HEADER YANG DIPERBAGUS -->
+<!-- ========================= -->
 <div class="page-header">
-    <h2><i class="fas fa-user-plus"></i> Tambah Contact</h2>
-    <p>Silakan isi form di bawah untuk menambahkan contact baru</p>
+    <div class="header-content">
+        <h2>
+            <i class="fas {% if object %}fa-user-edit{% else %}fa-user-plus{% endif %}"></i>
+            <span class="title-text">
+                {% if object %}Edit Contact{% else %}Tambah Contact{% endif %}
+            </span>
+        </h2>
+
+        <p>
+            <span class="description-text">
+                <i class="fas fa-info-circle"></i>
+                {% if object %}
+                    Edit data contact yang sudah ada
+                {% else %}
+                    Silakan isi form untuk menambahkan contact baru
+                {% endif %}
+            </span>
+        </p>
+    </div>
 </div>
 
 <div class="form-container">
     <form method="post" class="modern-form">
         {% csrf_token %}
-        
+
+        <!-- NAMA -->
         <div class="form-group">
             <label for="name">
                 <i class="fas fa-user"></i> Nama Lengkap
             </label>
-            <input type="text" name="name" id="name" placeholder="Contoh: Ahmad Fauzi" required>
-            <small class="form-text">Masukkan nama lengkap contact</small>
+
+            <input 
+                type="text"
+                name="name"
+                id="name"
+                value="{{ form.name.value|default:'' }}"
+                placeholder="Contoh: Ahmad Fauzi"
+                required
+                autocomplete="off"
+            >
+            <small class="form-text">
+                <i class="fas fa-info-circle"></i> Masukkan nama lengkap contact
+            </small>
         </div>
 
+        <!-- NOMOR -->
         <div class="form-group">
             <label for="phone_number">
                 <i class="fab fa-whatsapp"></i> Nomor WhatsApp
             </label>
-            <input type="text" name="phone_number" id="phone_number" placeholder="628xxxxxxxxxx" required>
-            <small class="form-text">Format: 628xxxx (tanpa tanda + atau spasi)</small>
+
+            <input 
+                type="tel"
+                name="phone_number"
+                id="phone_number"
+                value="{{ form.phone_number.value|default:'' }}"
+                placeholder="628xxxxxxxxxx"
+                required
+                autocomplete="off"
+                pattern="^62[0-9]{9,13}$"
+                title="Format nomor harus 62 diikuti 9-13 digit angka"
+            >
+            <small class="form-text">
+                <i class="fas fa-info-circle"></i> Format: 628xxxx (tanpa tanda + atau spasi) - Contoh: 6281234567890
+            </small>
         </div>
 
+        <!-- BUTTON -->
         <div class="form-actions">
             <button type="submit" class="btn-primary">
-                <i class="fas fa-save"></i> Simpan Contact
+                <i class="fas fa-save"></i>
+                {% if object %}Update Contact{% else %}Simpan Contact{% endif %}
             </button>
-            <a href="/contacts/" class="btn-secondary">
-                <i class="fas fa-arrow-left"></i> Kembali
+
+            <a href="{% url 'contact_list' %}" class="btn-secondary">
+                <i class="fas fa-arrow-left"></i> Kembali ke Daftar
             </a>
         </div>
+
     </form>
 </div>
+
+<!-- Info Card -->
+<div class="info-card">
+    <p>
+        <i class="fas fa-lightbulb"></i>
+        Pastikan nomor WhatsApp menggunakan kode negara 62 (Indonesia) tanpa tanda + atau spasi.
+    </p>
+</div>
+
+<!-- Script tambahan untuk validasi realtime -->
+<script>
+    // Validasi nomor WhatsApp secara realtime
+    const phoneInput = document.getElementById('phone_number');
+    const nameInput = document.getElementById('name');
+    
+    if (phoneInput) {
+        phoneInput.addEventListener('input', function(e) {
+            // Hanya angka yang diperbolehkan
+            this.value = this.value.replace(/[^0-9]/g, '');
+            
+            // Pastikan dimulai dengan 62
+            if (this.value.startsWith('62') && this.value.length > 2) {
+                this.style.borderColor = '#10b981';
+            } else if (this.value.length > 0) {
+                this.style.borderColor = '#ef4444';
+            } else {
+                this.style.borderColor = '#e2e8f0';
+            }
+        });
+    }
+    
+    if (nameInput) {
+        nameInput.addEventListener('input', function(e) {
+            if (this.value.trim().length > 0) {
+                this.style.borderColor = '#10b981';
+            } else {
+                this.style.borderColor = '#e2e8f0';
+            }
+        });
+    }
+</script>
+
 {% endblock %}
