@@ -1,6 +1,5 @@
 from django.views.generic import ListView, CreateView, TemplateView, UpdateView
 from django.urls import reverse_lazy
-from django.http import JsonResponse
 from django.shortcuts import redirect, get_object_or_404
 from django.views import View
 from django.utils import timezone
@@ -10,7 +9,7 @@ from collections import defaultdict
 from .models import Service, Contact, PowerLog, Log
 
 # ======================
-# AUTH & DJANGO
+# AUTH DJANGO
 # ======================
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
@@ -22,8 +21,18 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 
-from rest_framework_simplejwt.tokens import RefreshToken
+# ======================
+# Custom Authentication
+# ======================
+from .authentication import SafeJWTAuthentication
+
+# ======================
+# CSRF FIX
+# ======================
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
 
 # ======================
@@ -93,9 +102,10 @@ class DashboardView(TemplateView):
 
 
 # ======================
-# 🔥 DASHBOARD API
+# DASHBOARD API
 # ======================
 class DashboardAPI(APIView):
+    authentication_classes = [SafeJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -110,12 +120,22 @@ class ServiceListView(ListView):
     template_name = 'services/service_list.html'
     context_object_name = 'services'
 
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('/login/')
+        return super().dispatch(request, *args, **kwargs)
+
 
 class ServiceCreateView(CreateView):
     model = Service
     template_name = 'services/service_form.html'
     fields = ['name', 'url', 'service_type']
     success_url = reverse_lazy('service_list')
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('/login/')
+        return super().dispatch(request, *args, **kwargs)
 
 
 class ServiceUpdateView(UpdateView):
@@ -124,23 +144,30 @@ class ServiceUpdateView(UpdateView):
     fields = ['name', 'url', 'service_type']
     success_url = reverse_lazy('service_list')
 
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('/login/')
+        return super().dispatch(request, *args, **kwargs)
+
 
 class ServiceDeleteView(View):
     def post(self, request, pk):
+        if not request.user.is_authenticated:
+            return redirect('/login/')
         service = get_object_or_404(Service, pk=pk)
         service.delete()
         return redirect('service_list')
 
 
 # ======================
-# SERVICE API
+# SERVICE API (FIXED)
 # ======================
 class ServiceAPI(APIView):
+    authentication_classes = [SafeJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         services = Service.objects.all()
-
         data = [
             {
                 "id": s.id,
@@ -150,7 +177,6 @@ class ServiceAPI(APIView):
                 "status": s.last_status
             } for s in services
         ]
-
         return Response(data)
 
     def post(self, request):
@@ -159,7 +185,6 @@ class ServiceAPI(APIView):
             url=request.data.get("url"),
             service_type=request.data.get("service_type")
         )
-
         return Response({
             "message": "Service berhasil ditambahkan",
             "id": service.id
@@ -167,23 +192,22 @@ class ServiceAPI(APIView):
 
 
 class ServiceDetailAPI(APIView):
+    authentication_classes = [SafeJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def put(self, request, pk):
         service = get_object_or_404(Service, pk=pk)
-
         service.name = request.data.get("name")
         service.url = request.data.get("url")
         service.service_type = request.data.get("service_type")
         service.save()
-
         return Response({"message": "Service diupdate"})
 
     def delete(self, request, pk):
         service = get_object_or_404(Service, pk=pk)
         service.delete()
-
         return Response({"message": "Service dihapus"})
+
 
 # ======================
 # CONTACT (WEB)
@@ -193,12 +217,22 @@ class ContactListView(ListView):
     template_name = 'services/contact_list.html'
     context_object_name = 'contacts'
 
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('/login/')
+        return super().dispatch(request, *args, **kwargs)
+
 
 class ContactCreateView(CreateView):
     model = Contact
     template_name = 'services/contact_form.html'
     fields = ['name', 'phone_number']
     success_url = reverse_lazy('contact_list')
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('/login/')
+        return super().dispatch(request, *args, **kwargs)
 
 
 class ContactUpdateView(UpdateView):
@@ -207,17 +241,26 @@ class ContactUpdateView(UpdateView):
     fields = ['name', 'phone_number']
     success_url = reverse_lazy('contact_list')
 
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('/login/')
+        return super().dispatch(request, *args, **kwargs)
+
 
 class ContactDeleteView(View):
     def post(self, request, pk):
+        if not request.user.is_authenticated:
+            return redirect('/login/')
         contact = get_object_or_404(Contact, pk=pk)
         contact.delete()
         return redirect('contact_list')
 
+
 # ======================
-# CONTACT API
+# CONTACT API (FIXED)
 # ======================
 class ContactAPI(APIView):
+    authentication_classes = [SafeJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -236,11 +279,14 @@ class ContactAPI(APIView):
             name=request.data.get("name"),
             phone_number=request.data.get("phone_number")
         )
-
-        return Response({"message": "Contact dibuat", "id": contact.id})
+        return Response({
+            "message": "Contact berhasil ditambahkan",
+            "id": contact.id
+        }, status=201)
 
 
 class ContactDetailAPI(APIView):
+    authentication_classes = [SafeJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def put(self, request, pk):
@@ -248,13 +294,11 @@ class ContactDetailAPI(APIView):
         contact.name = request.data.get("name")
         contact.phone_number = request.data.get("phone_number")
         contact.save()
-
         return Response({"message": "Contact diupdate"})
 
     def delete(self, request, pk):
         contact = get_object_or_404(Contact, pk=pk)
         contact.delete()
-
         return Response({"message": "Contact dihapus"})
 
 
@@ -264,11 +308,17 @@ class ContactDetailAPI(APIView):
 class PowerView(TemplateView):
     template_name = 'services/power.html'
 
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('/login/')
+        return super().dispatch(request, *args, **kwargs)
+
 
 # ======================
-# 🔥 POWER API
+# POWER API (FIXED)
 # ======================
 class PowerDataAPI(APIView):
+    authentication_classes = [SafeJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -282,8 +332,19 @@ class PowerDataAPI(APIView):
         })
 
 
+# ======================
+# IoT API (API KEY)
+# ======================
 class PowerCreateAPI(APIView):
+    authentication_classes = []
+    permission_classes = []
+
     def post(self, request):
+        api_key = request.headers.get('X-API-KEY')
+
+        if api_key != 'SECRET123':
+            return Response({'error': 'Unauthorized'}, status=403)
+
         PowerLog.objects.create(
             voltage=request.data.get("voltage"),
             current=request.data.get("current"),
@@ -294,47 +355,56 @@ class PowerCreateAPI(APIView):
 
 
 # ======================
-# AUTH API
+# AUTH API (FIXED)
 # ======================
 class LoginAPI(APIView):
+    authentication_classes = []
+    permission_classes = []
+
     def post(self, request):
         username = request.data.get("username")
         password = request.data.get("password")
 
         if not username or not password:
-            return Response(
-                {"error": "Username dan password wajib diisi"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": "Username & password wajib"}, status=400)
 
-        user = authenticate(username=username, password=password)
+        user = authenticate(request, username=username, password=password)
 
         if user:
-            login(request, user)  # session login
-
+            login(request, user)
+            
+            # Generate JWT token
+            from rest_framework_simplejwt.tokens import RefreshToken
             refresh = RefreshToken.for_user(user)
-
+            
             return Response({
+                "message": "Login berhasil",
+                "username": user.username,
                 "access": str(refresh.access_token),
-                "refresh": str(refresh),
-                "username": user.username
+                "refresh": str(refresh)
             })
 
-        return Response(
-            {"error": "Username atau password salah"},
-            status=status.HTTP_401_UNAUTHORIZED
-        )
+        return Response({"error": "Username atau password salah"}, status=401)
 
 
 class RegisterAPI(APIView):
+    authentication_classes = []
+    permission_classes = []
+
     def post(self, request):
         username = request.data.get("username")
         password = request.data.get("password")
 
+        if not username or not password:
+            return Response({"error": "Username & password wajib"}, status=400)
+
         if User.objects.filter(username=username).exists():
             return Response({"error": "Username sudah ada"}, status=400)
 
-        user = User.objects.create_user(username=username, password=password)
+        user = User.objects.create_user(
+            username=username,
+            password=password
+        )
 
         return Response({
             "message": "User berhasil dibuat",
@@ -343,19 +413,11 @@ class RegisterAPI(APIView):
 
 
 class LogoutAPI(APIView):
+    authentication_classes = [SafeJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         logout(request)
-
-        try:
-            refresh_token = request.data.get("refresh")
-            if refresh_token:
-                token = RefreshToken(refresh_token)
-                token.blacklist()
-        except:
-            pass
-
         return Response({"message": "Logout berhasil"})
 
 

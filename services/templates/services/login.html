@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <title>Login - Monitoring System</title>
 
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
     <style>
@@ -35,11 +34,6 @@
             margin-bottom: 1rem;
         }
 
-        .input-group label {
-            display: block;
-            margin-bottom: 0.3rem;
-        }
-
         .input-group input {
             width: 100%;
             padding: 0.6rem;
@@ -60,11 +54,6 @@
 
         .btn-login:disabled {
             background: #999;
-            cursor: not-allowed;
-        }
-
-        .btn-login:hover:not(:disabled) {
-            background: #3a56d4;
         }
 
         .error {
@@ -72,13 +61,6 @@
             text-align: center;
             margin-top: 1rem;
             display: none;
-        }
-
-        .loading {
-            text-align: center;
-            margin-top: 10px;
-            font-size: 0.9rem;
-            color: #555;
         }
     </style>
 </head>
@@ -88,45 +70,49 @@
     <h2><i class="fas fa-lock"></i> Login</h2>
 
     <div class="input-group">
-        <label>Username</label>
-        <input type="text" id="username">
+        <input type="text" id="username" placeholder="Username">
     </div>
 
     <div class="input-group">
-        <label>Password</label>
-        <input type="password" id="password">
+        <input type="password" id="password" placeholder="Password">
     </div>
 
     <button class="btn-login" id="loginBtn" onclick="login()">Login</button>
-
-    <div class="loading" id="loadingText" style="display:none;">
-        <i class="fas fa-spinner fa-spin"></i> Loading...
-    </div>
 
     <div class="error" id="errorMsg"></div>
 </div>
 
 <script>
 
+// 🔥 Ambil CSRF token dari cookie
+function getCSRFToken() {
+    const name = 'csrftoken';
+    const cookies = document.cookie.split(';');
+
+    for (let cookie of cookies) {
+        cookie = cookie.trim();
+        if (cookie.startsWith(name + '=')) {
+            return cookie.substring(name.length + 1);
+        }
+    }
+    return '';
+}
+
 function login() {
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value.trim();
-
     const btn = document.getElementById('loginBtn');
-    const loading = document.getElementById('loadingText');
 
-    // 🔥 VALIDASI
     if (!username || !password) {
         return showError("Username & Password wajib diisi");
     }
 
-    // 🔥 LOADING STATE
     btn.disabled = true;
-    loading.style.display = 'block';
     hideError();
 
     fetch('/api/login/', {
         method: 'POST',
+        credentials: 'include',
         headers: {
             'Content-Type': 'application/json'
         },
@@ -141,16 +127,11 @@ function login() {
 
         return data;
     })
-    .then(data => {
+    .then(() => {
+        // ❌ HAPUS TOKEN (tidak pakai JWT lagi)
+        // localStorage.removeItem('access');
 
-        // 🔥 SIMPAN TOKEN
-        localStorage.setItem('access', data.access);
-
-        if (data.refresh) {
-            localStorage.setItem('refresh', data.refresh);
-        }
-
-        // 🔥 REDIRECT
+        // ✅ langsung redirect (session sudah tersimpan di cookie)
         window.location.href = '/dashboard/';
     })
     .catch(err => {
@@ -158,17 +139,8 @@ function login() {
     })
     .finally(() => {
         btn.disabled = false;
-        loading.style.display = 'none';
     });
 }
-
-
-// ENTER KEY SUPPORT
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') {
-        login();
-    }
-});
 
 function showError(msg) {
     const el = document.getElementById('errorMsg');
@@ -177,10 +149,15 @@ function showError(msg) {
 }
 
 function hideError() {
-    const el = document.getElementById('errorMsg');
-    el.style.display = 'none';
+    document.getElementById('errorMsg').style.display = 'none';
 }
 
+// ENTER KEY
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        login();
+    }
+});
 </script>
 
 </body>

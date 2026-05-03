@@ -3,55 +3,17 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Monitoring System</title>
     
     <link rel="stylesheet" href="{% static 'services/css/style.css' %}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <style>
-        .nav-menu li {
-            padding: 12px 15px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            transition: 0.3s;
-            color: #ccc;
-        }
-
-        .nav-menu li:hover {
-            background-color: #2c2f3a;
-            color: #fff;
-        }
-
-        .nav-menu li.active {
-            background: linear-gradient(90deg, #4facfe, #00f2fe);
-            color: #fff;
-            font-weight: 600;
-            border-radius: 8px;
-        }
-
-        /* 🔥 LOGOUT STYLE */
-        .logout-btn {
-            margin-top: 10px;
-            background: rgba(239, 68, 68, 0.1);
-            color: #ef4444 !important;
-        }
-
-        .logout-btn:hover {
-            background: #ef4444;
-            color: #fff !important;
-        }
-    </style>
 </head>
 
 <body>
 
-<!-- ====================== -->
 <!-- SIDEBAR -->
-<!-- ====================== -->
 <div class="sidebar">
     <div class="sidebar-header">
         <div class="logo-icon">
@@ -61,143 +23,280 @@
     </div>
 
     <ul class="nav-menu">
-
-        <li class="{% if request.path == '/dashboard/' %}active{% endif %}"
-            onclick="window.location.href='/dashboard/'">
+        <li onclick="window.location.href='/dashboard/'" data-page="dashboard">
             <i class="fas fa-tachometer-alt"></i>
             <span>Dashboard</span>
         </li>
 
-        <li class="{% if '/services' in request.path %}active{% endif %}"
-            onclick="window.location.href='/services/'">
+        <li onclick="window.location.href='/services/'" data-page="services">
             <i class="fas fa-server"></i>
             <span>Services</span>
         </li>
 
-        <li class="{% if '/contacts' in request.path %}active{% endif %}"
-            onclick="window.location.href='/contacts/'">
+        <li onclick="window.location.href='/contacts/'" data-page="contacts">
             <i class="fas fa-address-book"></i>
             <span>Contacts</span>
         </li>
 
-        <li class="{% if '/power' in request.path %}active{% endif %}"
-            onclick="window.location.href='/power/'">
+        <li onclick="window.location.href='/power/'" data-page="power">
             <i class="fas fa-bolt"></i>
             <span>Power</span>
         </li>
 
-        <!-- 🔥 LOGOUT -->
-        <li class="logout-btn" onclick="logout()">
+        <li class="logout-btn" onclick="logoutUser()">
             <i class="fas fa-sign-out-alt"></i>
             <span>Logout</span>
         </li>
-
     </ul>
 
     <div class="sidebar-footer">
         <div class="user-info">
             <i class="fas fa-user-circle"></i>
-            <span id="username">User</span>
+            <span id="username">{{ request.user.username|default:"Guest" }}</span>
         </div>
     </div>
 </div>
 
-<!-- ====================== -->
-<!-- MAIN -->
-<!-- ====================== -->
+<!-- MAIN CONTENT -->
 <div class="main">
-
     <div class="top-bar">
-        <h1 id="pageTitle">
-            {% if request.path == '/services/' %}Services
-            {% elif request.path == '/contacts/' %}Contacts
-            {% elif request.path == '/power/' %}Power
-            {% else %}Dashboard
-            {% endif %}
-        </h1>
-
+        <h1 id="pageTitle"></h1>
         <div class="top-bar-actions">
             <div class="datetime" id="datetime"></div>
-
-            <button class="refresh-btn" onclick="location.reload()">
+            <button class="refresh-btn" onclick="refreshCurrentPage()" title="Refresh">
                 <i class="fas fa-sync-alt"></i>
             </button>
         </div>
     </div>
 
     <div id="content">
-        {% block content %}{% endblock %}
+        {% block content %}
+        <!-- Konten akan diisi oleh child template -->
+        {% endblock %}
     </div>
-
 </div>
 
 <!-- ====================== -->
-<!-- SCRIPT -->
+<!-- GLOBAL SCRIPTS -->
 <!-- ====================== -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{% static 'services/js/app.js' %}"></script>
+
 <script>
+    (function() {
+        // ======================
+        // UPDATE DATE TIME
+        // ======================
+        function updateDateTime() {
+            const now = new Date();
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit' 
+            };
+            const datetimeElem = document.getElementById('datetime');
+            if (datetimeElem) {
+                datetimeElem.innerHTML = now.toLocaleDateString('id-ID', options);
+            }
+        }
 
-    // ======================
-    // 🔒 PROTECT PAGE (WAJIB LOGIN)
-    // ======================
-    if (!localStorage.getItem("access")) {
-        window.location.href = "/login/";
-    }
+        // ======================
+        // UPDATE PAGE TITLE
+        // ======================
+        function updatePageTitle() {
+            const path = window.location.pathname;
+            const titleMap = {
+                '/dashboard/': 'Dashboard',
+                '/services/': 'Services',
+                '/contacts/': 'Contacts',
+                '/power/': 'Power'
+            };
+            const pageTitleElem = document.getElementById('pageTitle');
+            if (pageTitleElem) {
+                pageTitleElem.innerText = titleMap[path] || 'Dashboard';
+                document.title = `Monitoring System - ${pageTitleElem.innerText}`;
+            }
+        }
 
-    // ======================
-    // JAM REALTIME
-    // ======================
-    function updateDateTime() {
-        const now = new Date();
-        const options = { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric', 
-            hour: '2-digit', 
-            minute: '2-digit', 
-            second: '2-digit' 
+        // ======================
+        // SET ACTIVE MENU
+        // ======================
+        function setActiveMenu() {
+            const path = window.location.pathname;
+            const menuItems = document.querySelectorAll('.nav-menu li');
+            
+            menuItems.forEach(item => {
+                const page = item.getAttribute('data-page');
+                if (page && (path.includes(`/${page}`) || (page === 'dashboard' && path === '/'))) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+
+        // ======================
+        // REFRESH CURRENT PAGE
+        // ======================
+        window.refreshCurrentPage = function() {
+            location.reload();
         };
 
-        document.getElementById('datetime').innerHTML =
-            now.toLocaleDateString('id-ID', options);
-    }
+        // ======================
+        // LOGOUT FUNCTION
+        // ======================
+        window.logoutUser = function() {
+            const token = localStorage.getItem('access');
+            
+            fetch('/api/logout/', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                }
+            }).finally(() => {
+                localStorage.clear();
+                window.location.href = '/login/';
+            });
+        };
 
-    updateDateTime();
-    setInterval(updateDateTime, 1000);
+        // ======================
+        // TOKEN HELPERS
+        // ======================
+        window.getToken = function() {
+            return localStorage.getItem('access');
+        };
 
-    // ======================
-    // SET USERNAME
-    // ======================
-    const username = localStorage.getItem("username");
-    if (username) {
-        document.getElementById("username").innerText = username;
-    }
+        window.isAuthenticated = function() {
+            return !!window.getToken();
+        };
 
-    // ======================
-    // 🔥 LOGOUT FUNCTION
-    // ======================
-    function logout() {
-        const refresh = localStorage.getItem("refresh");
-        const access = localStorage.getItem("access");
+        // ======================
+        // AUTH FETCH
+        // ======================
+        window.authFetch = function(url, options = {}) {
+            const token = window.getToken();
+            
+            if (!token && !url.includes('/login/')) {
+                window.location.href = '/login/';
+                return Promise.reject(new Error('No token'));
+            }
+            
+            return fetch(url, {
+                ...options,
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                }
+            });
+        };
 
-        fetch('/api/logout/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + access
-            },
-            body: JSON.stringify({ refresh: refresh })
-        })
-        .then(() => {
-            localStorage.clear();
-            window.location.href = '/login/';
-        })
-        .catch(() => {
-            localStorage.clear();
-            window.location.href = '/login/';
+        // ======================
+        // ESCAPE HTML
+        // ======================
+        window.escapeHtml = function(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        };
+
+        // ======================
+        // SHOW NOTIFICATION
+        // ======================
+        window.showNotification = function(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.innerHTML = `
+                <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+                <span>${message}</span>
+            `;
+            
+            // Tambahkan style jika belum ada
+            if (!document.querySelector('#notification-style')) {
+                const style = document.createElement('style');
+                style.id = 'notification-style';
+                style.textContent = `
+                    .notification {
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        padding: 12px 20px;
+                        border-radius: 10px;
+                        color: white;
+                        z-index: 10000;
+                        animation: slideInRight 0.3s ease;
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    }
+                    .notification-success { background: #10b981; }
+                    .notification-error { background: #ef4444; }
+                    .notification-info { background: #3b82f6; }
+                    @keyframes slideInRight {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        };
+
+        // ======================
+        // SHOW LOADING
+        // ======================
+        window.showLoading = function(containerId) {
+            const container = document.getElementById(containerId || 'content');
+            if (container) {
+                const originalContent = container.innerHTML;
+                container.dataset.originalContent = originalContent;
+                container.innerHTML = `
+                    <div class="loading-state">
+                        <i class="fas fa-spinner"></i>
+                        <p>Loading...</p>
+                    </div>
+                `;
+            }
+        };
+
+        window.hideLoading = function(containerId) {
+            const container = document.getElementById(containerId || 'content');
+            if (container && container.dataset.originalContent) {
+                container.innerHTML = container.dataset.originalContent;
+                delete container.dataset.originalContent;
+            }
+        };
+
+        // ======================
+        // INITIALIZE
+        // ======================
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDateTime();
+            updatePageTitle();
+            setActiveMenu();
+            
+            // Update time every second
+            setInterval(updateDateTime, 1000);
+            
+            // Jika ada content yang perlu di-load via AJAX
+            if (window.initPage && typeof window.initPage === 'function') {
+                window.initPage();
+            }
         });
-    }
-
+    })();
 </script>
 
 </body>

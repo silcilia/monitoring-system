@@ -1,56 +1,8 @@
 from django.urls import path
-from .views import (
-
-    # ======================
-    # WEB
-    # ======================
-    DashboardView,
-    ServiceListView,
-    ServiceCreateView,
-    ServiceUpdateView,
-    ServiceDeleteView,
-
-    ContactListView,
-    ContactCreateView,
-    ContactUpdateView,
-    ContactDeleteView,
-
-    PowerView,
-    LoginPageView,
-
-    # ======================
-    # API AUTH
-    # ======================
-    LoginAPI,
-    LogoutAPI,
-    RegisterAPI,
-
-    # ======================
-    # API DASHBOARD
-    # ======================
-    DashboardAPI,
-
-    # ======================
-    # API SERVICES
-    # ======================
-    ServiceAPI,
-    ServiceDetailAPI,
-
-    # ======================
-    # API CONTACT
-    # ======================
-    ContactAPI,
-    ContactDetailAPI,
-
-    # ======================
-    # API POWER
-    # ======================
-    PowerDataAPI,
-    PowerCreateAPI,
-)
+from django.views.decorators.csrf import csrf_exempt
+from .views import *
 
 urlpatterns = [
-
     # ======================
     # AUTH (WEB)
     # ======================
@@ -84,32 +36,32 @@ urlpatterns = [
     path('power/', PowerView.as_view(), name='power'),
 
     # =====================================================
-    # AUTH API
+    # AUTH API (csrf_exempt)
     # =====================================================
-    path('api/login/', LoginAPI.as_view(), name='api_login'),
-    path('api/register/', RegisterAPI.as_view(), name='api_register'),
-    path('api/logout/', LogoutAPI.as_view(), name='api_logout'),
+    path('api/login/', csrf_exempt(LoginAPI.as_view()), name='api_login'),
+    path('api/register/', csrf_exempt(RegisterAPI.as_view()), name='api_register'),
+    path('api/logout/', csrf_exempt(LogoutAPI.as_view()), name='api_logout'),
 
     # =====================================================
-    # DASHBOARD API
+    # DASHBOARD API (csrf_exempt)
     # =====================================================
-    path('api/dashboard/', DashboardAPI.as_view(), name='api_dashboard'),
+    path('api/dashboard/', csrf_exempt(DashboardAPI.as_view()), name='api_dashboard'),
 
     # =====================================================
-    # SERVICE API
+    # SERVICE API (csrf_exempt)
     # =====================================================
-    path('api/services/', ServiceAPI.as_view(), name='api_services'),
-    path('api/services/<int:pk>/', ServiceDetailAPI.as_view(), name='api_service_detail'),
+    path('api/services/', csrf_exempt(ServiceAPI.as_view()), name='api_services'),
+    path('api/services/<int:pk>/', csrf_exempt(ServiceDetailAPI.as_view()), name='api_service_detail'),
 
     # =====================================================
-    # CONTACT API
+    # CONTACT API (csrf_exempt)
     # =====================================================
-    path('api/contacts/', ContactAPI.as_view(), name='api_contacts'),
-    path('api/contacts/<int:pk>/', ContactDetailAPI.as_view(), name='api_contact_detail'),
+    path('api/contacts/', csrf_exempt(ContactAPI.as_view()), name='api_contacts'),
+    path('api/contacts/<int:pk>/', csrf_exempt(ContactDetailAPI.as_view()), name='api_contact_detail'),
 
     # =====================================================
-    # POWER API
+    # POWER API (csrf_exempt)
     # =====================================================
-    path('api/power-data/', PowerDataAPI.as_view(), name='api_power_data'),
-    path('api/power-add/', PowerCreateAPI.as_view(), name='api_power_add'),
+    path('api/power-data/', csrf_exempt(PowerDataAPI.as_view()), name='api_power_data'),
+    path('api/power-add/', csrf_exempt(PowerCreateAPI.as_view()), name='api_power_add'),
 ]

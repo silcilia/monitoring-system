@@ -3,465 +3,218 @@
 {% block content %}
 
 <style>
-    /* ==================== */
-    /* HEADER YANG DIPERBAGUS */
-    /* ==================== */
-    .page-header {
-        margin-bottom: 2rem;
-        position: relative;
-    }
-
-    .page-header::before {
-        content: '';
-        position: absolute;
-        top: -20px;
-        left: -20px;
-        right: -20px;
-        bottom: -20px;
-        background: linear-gradient(135deg, rgba(67, 97, 238, 0.05) 0%, rgba(67, 97, 238, 0.02) 100%);
-        border-radius: 1.5rem;
-        z-index: -1;
-    }
-
-    .header-content {
-        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-        border-radius: 1rem;
-        padding: 1.5rem 2rem;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-        border: 1px solid rgba(67, 97, 238, 0.1);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .header-content::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        right: 0;
-        width: 150px;
-        height: 150px;
-        background: radial-gradient(circle, rgba(67, 97, 238, 0.1) 0%, transparent 70%);
-        border-radius: 50%;
-    }
-
-    .header-content::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100px;
-        height: 100px;
-        background: radial-gradient(circle, rgba(6, 214, 160, 0.08) 0%, transparent 70%);
-        border-radius: 50%;
-    }
-
-    .page-header h2 {
+    .search-box {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        margin: 0 0 0.75rem 0;
-        position: relative;
-        z-index: 1;
-    }
-
-    .page-header h2::before {
-        content: '\f0ae';
-        font-family: 'Font Awesome 6 Free';
-        font-weight: 900;
-        background: linear-gradient(135deg, #4361ee, #3a56d4);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-        font-size: 1.5rem;
-    }
-
-    .title-text {
-        background: linear-gradient(135deg, #1e293b, #4361ee);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-        font-size: 1.75rem;
-        font-weight: 800;
-    }
-
-    .service-count {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        background: linear-gradient(135deg, #4361ee, #3a56d4);
-        padding: 0.25rem 0.875rem;
-        border-radius: 2rem;
-        font-size: 0.75rem;
-        font-weight: 700;
-        color: white;
-        margin-left: 0.75rem;
-    }
-
-    .page-header p {
-        margin: 0;
-        position: relative;
-        z-index: 1;
-        font-size: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-        color: #64748b;
-    }
-
-    .page-header p i {
-        color: #4361ee;
-    }
-
-    /* ==================== */
-    /* TOOLBAR */
-    /* ==================== */
-    .table-toolbar {
-        margin-bottom: 1.5rem;
-    }
-
-    .btn-primary {
-        background: linear-gradient(135deg, #4361ee, #3a56d4);
-        color: white;
-        padding: 0.625rem 1.25rem;
-        border-radius: 0.5rem;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-weight: 600;
-        font-size: 0.875rem;
-        transition: all 0.3s ease;
-        border: none;
-        cursor: pointer;
-    }
-
-    .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
-        background: linear-gradient(135deg, #3a56d4, #2c3e9e);
-    }
-
-    /* ==================== */
-    /* CARD & TABLE */
-    /* ==================== */
-    .card {
+        gap: 10px;
         background: white;
-        border-radius: 1rem;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 8px 15px;
     }
-
-    .table-responsive {
-        overflow-x: auto;
+    
+    .search-box i {
+        color: #94a3b8;
     }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
+    
+    .search-box input {
+        border: none;
+        outline: none;
+        width: 250px;
+        font-size: 14px;
     }
-
-    thead {
-        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    
+    .table-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 15px;
     }
-
-    th {
-        padding: 1rem;
-        text-align: left;
-        font-weight: 600;
-        color: #475569;
-        border-bottom: 2px solid #e2e8f0;
-        font-size: 0.875rem;
+    
+    .action-buttons {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
     }
-
-    th i {
-        margin-right: 0.5rem;
-        color: #4361ee;
-    }
-
-    td {
-        padding: 1rem;
-        border-bottom: 1px solid #f1f5f9;
-        vertical-align: middle;
-        font-size: 0.875rem;
-        color: #334155;
-    }
-
-    tbody tr {
-        transition: all 0.3s ease;
-    }
-
-    tbody tr:hover {
-        background: #f8fafc;
-        transform: scale(1.01);
-    }
-
-    /* Status Badge */
+    
     .status-badge {
         display: inline-flex;
         align-items: center;
-        gap: 0.375rem;
-        padding: 0.25rem 0.75rem;
-        border-radius: 2rem;
-        font-size: 0.75rem;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 12px;
         font-weight: 600;
     }
-
+    
     .status-up {
         background: #d1fae5;
         color: #065f46;
     }
-
-    .status-up::before {
-        content: '\f111';
-        font-family: 'Font Awesome 6 Free';
-        font-weight: 900;
-        font-size: 0.5rem;
-        color: #10b981;
-        margin-right: 0.25rem;
-    }
-
+    
     .status-down {
         background: #fee2e2;
         color: #991b1b;
     }
-
-    .status-down::before {
-        content: '\f111';
-        font-family: 'Font Awesome 6 Free';
-        font-weight: 900;
-        font-size: 0.5rem;
-        color: #ef4444;
-        margin-right: 0.25rem;
-    }
-
-    /* Tipe Badge */
+    
     .type-badge {
         display: inline-flex;
         align-items: center;
-        gap: 0.375rem;
-        padding: 0.25rem 0.75rem;
-        border-radius: 0.375rem;
-        font-size: 0.75rem;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 8px;
+        font-size: 12px;
         font-weight: 600;
     }
-
+    
     .type-http {
         background: #e0e7ff;
         color: #3730a3;
     }
-
+    
     .type-ping {
         background: #fef3c7;
         color: #92400e;
     }
-
-    /* Tombol Aksi */
-    .btn-edit {
-        background: linear-gradient(135deg, #f59e0b, #d97706);
-        color: white;
-        padding: 0.375rem 0.875rem;
-        border-radius: 0.375rem;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.375rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        margin-right: 0.5rem;
-        border: none;
-        cursor: pointer;
-    }
-
-    .btn-edit:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
-    }
-
-    .btn-delete {
-        background: linear-gradient(135deg, #ef4444, #dc2626);
-        color: white;
-        padding: 0.375rem 0.875rem;
-        border-radius: 0.375rem;
-        border: none;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.375rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }
-
-    .btn-delete:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
-    }
-
-    /* ==================== */
-    /* MODAL */
-    /* ==================== */
-    .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(4px);
-        display: none;
-        justify-content: center;
-        align-items: center;
-        z-index: 9999;
-        animation: fadeIn 0.3s ease;
-    }
-
-    .modal-box {
-        background: white;
-        padding: 2rem;
-        border-radius: 1rem;
-        width: 400px;
-        max-width: 90%;
+    
+    .empty-state {
         text-align: center;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-        animation: slideIn 0.3s ease;
+        padding: 50px !important;
+        color: #94a3b8;
     }
-
-    .modal-box h3 {
-        margin: 0 0 1rem 0;
-        color: #1e293b;
-        font-size: 1.25rem;
+    
+    .empty-state i {
+        font-size: 50px;
+        margin-bottom: 15px;
+        display: block;
+    }
+    
+    .loading-state {
+        text-align: center;
+        padding: 50px !important;
+        color: #64748b;
+    }
+    
+    .loading-state i {
+        font-size: 30px;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    /* Pagination */
+    .pagination-wrapper {
         display: flex;
+        justify-content: center;
         align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
+        gap: 8px;
+        margin-top: 20px;
+        flex-wrap: wrap;
     }
-
-    .modal-box h3::before {
-        content: '\f071';
-        font-family: 'Font Awesome 6 Free';
-        font-weight: 900;
-        color: #ef4444;
-    }
-
-    .modal-box p {
-        color: #475569;
-        margin-bottom: 1.5rem;
-    }
-
-    .modal-box p b {
-        color: #dc2626;
-    }
-
-    .modal-actions {
-        display: flex;
-        justify-content: center;
-        gap: 1rem;
-    }
-
-    .btn-danger {
-        background: linear-gradient(135deg, #ef4444, #dc2626);
-        color: white;
-        padding: 0.625rem 1.5rem;
-        border: none;
-        border-radius: 0.5rem;
+    
+    .page-btn {
+        background: white;
+        border: 1px solid #e2e8f0;
+        padding: 8px 14px;
+        border-radius: 8px;
         cursor: pointer;
-        font-weight: 600;
         transition: all 0.3s ease;
+        color: #1e293b;
+        font-size: 13px;
     }
-
-    .btn-danger:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    
+    .page-btn:hover:not(:disabled) {
+        background: #1e3a5f;
+        color: white;
+        border-color: #1e3a5f;
     }
-
+    
+    .page-btn.active {
+        background: #1e3a5f;
+        color: white;
+        border-color: #1e3a5f;
+    }
+    
+    .page-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .page-dots {
+        padding: 0 4px;
+        color: #64748b;
+    }
+    
+    .page-info {
+        margin-left: 12px;
+        padding: 6px 12px;
+        background: #f1f5f9;
+        border-radius: 8px;
+        font-size: 12px;
+        color: #64748b;
+    }
+    
+    /* Modal Form */
+    .modal-box form {
+        text-align: left;
+    }
+    
+    .modal-box input, 
+    .modal-box select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 14px;
+        margin-bottom: 15px;
+        font-family: inherit;
+    }
+    
+    .modal-box input:focus,
+    .modal-box select:focus {
+        outline: none;
+        border-color: #4361ee;
+        box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+    }
+    
+    .modal-buttons {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
+    }
+    
+    .modal-buttons button {
+        flex: 1;
+        padding: 10px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+    }
+    
     .btn-secondary {
         background: #f1f5f9;
         color: #475569;
-        padding: 0.625rem 1.5rem;
         border: 1px solid #e2e8f0;
-        border-radius: 0.5rem;
-        cursor: pointer;
-        font-weight: 600;
-        transition: all 0.3s ease;
     }
-
+    
     .btn-secondary:hover {
         background: #e2e8f0;
-        color: #1e293b;
-    }
-
-    /* Empty state */
-    .empty-state {
-        text-align: center;
-        padding: 3rem !important;
-        color: #94a3b8;
-    }
-
-    .empty-state i {
-        font-size: 3rem;
-        margin-bottom: 1rem;
-        display: block;
-    }
-
-    /* Animations */
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-        }
-        to {
-            opacity: 1;
-        }
-    }
-
-    @keyframes slideIn {
-        from {
-            transform: translateY(-20px);
-            opacity: 0;
-        }
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
-
-    /* Responsive */
-    @media (max-width: 768px) {
-        th, td {
-            padding: 0.75rem;
-        }
-
-        .btn-edit, .btn-delete {
-            padding: 0.25rem 0.625rem;
-            font-size: 0.7rem;
-        }
-
-        .header-content {
-            padding: 1rem;
-        }
-
-        .title-text {
-            font-size: 1.25rem;
-        }
-
-        .service-count {
-            font-size: 0.65rem;
-            padding: 0.2rem 0.6rem;
-        }
     }
 </style>
 
-<!-- =========================
-HEADER YANG DIPERBAGUS
-========================= -->
 <div class="page-header">
     <div class="header-content">
         <h2>
+            <i class="fas fa-server"></i>
             <span class="title-text">Daftar Service</span>
-            <span class="service-count">
-                <i class="fas fa-chart-simple"></i> {{ services|length }} Service
-            </span>
+            <span class="service-count" id="serviceCount">0 Service</span>
         </h2>
         <p>
             <i class="fas fa-info-circle"></i>
@@ -470,112 +223,65 @@ HEADER YANG DIPERBAGUS
     </div>
 </div>
 
-<!-- =========================
-TOOLBAR
-========================= -->
 <div class="table-toolbar">
-    <a href="{% url 'service_create' %}" class="btn-primary">
+    <button class="btn-primary" onclick="openServiceModal()">
         <i class="fas fa-plus"></i> Tambah Service
-    </a>
+    </button>
+    
+    <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" placeholder="Cari service..." onkeyup="searchServices()">
+    </div>
 </div>
 
-<!-- =========================
-TABLE
-========================= -->
 <div class="card">
     <div class="table-responsive">
-        <table>
+        <table class="modern-table">
             <thead>
                 <tr>
                     <th><i class="fas fa-tag"></i> Nama</th>
                     <th><i class="fas fa-link"></i> URL</th>
                     <th><i class="fas fa-code-branch"></i> Tipe</th>
                     <th><i class="fas fa-circle"></i> Status</th>
-                    <th><i class="fas fa-clock"></i> Last Check</th>
                     <th><i class="fas fa-cog"></i> Aksi</th>
                 </tr>
             </thead>
-
-            <tbody>
-                {% for s in services %}
+            <tbody id="serviceTableBody">
                 <tr>
-                    <td>
-                        <strong>{{ s.name }}</strong>
-                    </td>
-                    <td>
-                        <span style="font-family: monospace; font-size: 0.8rem;">{{ s.url }}</span>
-                    </td>
-                    <td>
-                        {% if s.service_type == "HTTP" %}
-                            <span class="type-badge type-http">
-                                <i class="fas fa-globe"></i> HTTP
-                            </span>
-                        {% else %}
-                            <span class="type-badge type-ping">
-                                <i class="fas fa-network-wired"></i> PING
-                            </span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if s.last_status == "UP" %}
-                            <span class="status-badge status-up">
-                                UP
-                            </span>
-                        {% else %}
-                            <span class="status-badge status-down">
-                                DOWN
-                            </span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {{ s.last_check|default:"-" }}
-                    </td>
-                    <td>
-                        <!-- EDIT -->
-                        <a href="{% url 'service_update' s.id %}" class="btn-edit">
-                            <i class="fas fa-edit"></i> Edit
-                        </a>
-
-                        <!-- DELETE -->
-                        <button class="btn-delete delete-btn"
-                            data-id="{{ s.id }}"
-                            data-name="{{ s.name|escapejs }}">
-                            <i class="fas fa-trash"></i> Hapus
-                        </button>
+                    <td colspan="5" class="loading-state">
+                        <i class="fas fa-spinner fa-spin"></i> Loading...
                     </td>
                 </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" class="empty-state">
-                        <i class="fas fa-inbox"></i>
-                        <p>Belum ada data service</p>
-                        <a href="{% url 'service_create' %}" class="btn-primary" style="margin-top: 0.5rem;">
-                            <i class="fas fa-plus"></i> Tambah Service Sekarang
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
             </tbody>
         </table>
     </div>
+    <div id="pagination"></div>
 </div>
 
-<!-- =========================
-MODAL DELETE
-========================= -->
-<div id="deleteModal" class="modal-overlay">
+<!-- MODAL CREATE/EDIT SERVICE (POPUP) -->
+<div id="serviceModal" class="modal-overlay">
     <div class="modal-box">
-        <h3>Konfirmasi Hapus</h3>
-        <p id="deleteText"></p>
-
-        <form id="deleteForm" method="post">
-            {% csrf_token %}
-
-            <div class="modal-actions">
-                <button type="submit" class="btn-danger">
-                    <i class="fas fa-check"></i> Ya, Hapus
+        <h3 id="modalTitle">
+            <i class="fas fa-plus-circle"></i> Tambah Service
+        </h3>
+        
+        <form id="serviceForm">
+            <input type="hidden" id="serviceId">
+            
+            <input type="text" id="name" placeholder="Nama Service" required>
+            
+            <input type="text" id="url" placeholder="URL / IP Address" required>
+            
+            <select id="service_type">
+                <option value="HTTP">🌐 HTTP / HTTPS</option>
+                <option value="PING">📡 PING</option>
+            </select>
+            
+            <div class="modal-buttons">
+                <button type="button" class="btn-primary" onclick="saveService()">
+                    <i class="fas fa-save"></i> Simpan
                 </button>
-                <button type="button" onclick="closeModal()" class="btn-secondary">
+                <button type="button" class="btn-secondary" onclick="closeServiceModal()">
                     <i class="fas fa-times"></i> Batal
                 </button>
             </div>
@@ -583,45 +289,407 @@ MODAL DELETE
     </div>
 </div>
 
-<!-- =========================
-SCRIPT (FIXED)
-========================= -->
+<!-- MODAL DELETE CONFIRMATION -->
+<div id="deleteModal" class="modal-overlay">
+    <div class="modal-box">
+        <h3>
+            <i class="fas fa-trash-alt"></i> Konfirmasi Hapus
+        </h3>
+        <p id="deleteText">Yakin ingin menghapus service ini?</p>
+        <div class="modal-buttons">
+            <button type="button" class="btn-danger" id="btnConfirmDelete">
+                <i class="fas fa-check"></i> Ya, Hapus
+            </button>
+            <button type="button" class="btn-secondary" onclick="closeDeleteModal()">
+                <i class="fas fa-times"></i> Batal
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
-// ambil semua tombol delete
-document.querySelectorAll('.delete-btn').forEach(button => {
-    button.addEventListener('click', function() {
-        const id = this.dataset.id;
-        const name = this.dataset.name;
-
-        const modal = document.getElementById('deleteModal');
-        const deleteForm = document.getElementById('deleteForm');
-        const deleteText = document.getElementById('deleteText');
-
-        modal.style.display = 'flex';
-        deleteForm.action = `/services/delete/${id}/`;
-        deleteText.innerHTML = `Yakin mau hapus <b>${name}</b>?`;
+    // ===============================
+    // STATE
+    // ===============================
+    let currentEditId = null;
+    let currentDeleteId = null;
+    let currentPage = 1;
+    let itemsPerPage = 10;
+    let totalItems = 0;
+    let allServices = [];
+    
+    // ===============================
+    // LOAD SERVICES FROM API
+    // ===============================
+    async function loadServices(page = 1, search = '') {
+        const tbody = document.getElementById('serviceTableBody');
+        currentPage = page;
+        
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="loading-state">
+                    <i class="fas fa-spinner fa-spin"></i> Memuat data...
+                </td>
+            </tr>
+        `;
+        
+        try {
+            const token = localStorage.getItem('access');
+            if (!token) {
+                window.location.href = '/login/';
+                return;
+            }
+            
+            const response = await fetch('/api/services/', {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.status === 401) {
+                window.location.href = '/login/';
+                return;
+            }
+            
+            const data = await response.json();
+            allServices = data;
+            totalItems = data.length;
+            
+            // Update counter
+            const countSpan = document.getElementById('serviceCount');
+            if (countSpan) countSpan.innerHTML = totalItems + ' Service';
+            
+            renderServicesTable(data, page, search);
+            renderPagination();
+            
+        } catch (error) {
+            console.error('Error:', error);
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="empty-state">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Gagal memuat data
+                    </td>
+                </tr>
+            `;
+        }
+    }
+    
+    // ===============================
+    // RENDER SERVICES TABLE
+    // ===============================
+    function renderServicesTable(data, page, search) {
+        const tbody = document.getElementById('serviceTableBody');
+        
+        // Filter by search
+        let filteredData = data;
+        if (search) {
+            filteredData = data.filter(item => 
+                item.name.toLowerCase().includes(search.toLowerCase()) ||
+                item.url.toLowerCase().includes(search.toLowerCase())
+            );
+            totalItems = filteredData.length;
+        }
+        
+        // Pagination
+        const start = (page - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        const pageData = filteredData.slice(start, end);
+        
+        if (!pageData.length) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>Belum ada data service</p>
+                        <button class="btn-primary" onclick="openServiceModal()" style="margin-top: 10px;">
+                            <i class="fas fa-plus"></i> Tambah Service Sekarang
+                        </button>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = pageData.map(s => `
+            <tr>
+                <td data-label="Nama">
+                    <strong>${escapeHtml(s.name)}</strong>
+                </td>
+                <td data-label="URL">
+                    <code style="font-family: monospace; font-size: 0.8rem;">${escapeHtml(s.url)}</code>
+                </td>
+                <td data-label="Tipe">
+                    <span class="type-badge ${s.service_type === 'HTTP' ? 'type-http' : 'type-ping'}">
+                        ${s.service_type === 'HTTP' ? '🌐' : '📡'} ${s.service_type}
+                    </span>
+                </td>
+                <td data-label="Status">
+                    <span class="status-badge ${s.status === 'UP' ? 'status-up' : 'status-down'}">
+                        <i class="fas fa-circle"></i> ${s.status || '?'}
+                    </span>
+                </td>
+                <td data-label="Aksi">
+                    <div class="action-buttons">
+                        <button class="btn-edit" onclick="openEditService(${s.id}, '${escapeHtml(s.name)}', '${escapeHtml(s.url)}', '${s.service_type}')">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn-delete" onclick="openDeleteService(${s.id}, '${escapeHtml(s.name)}')">
+                            <i class="fas fa-trash"></i> Hapus
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+    
+    // ===============================
+    // PAGINATION
+    // ===============================
+    function renderPagination() {
+        const container = document.getElementById('pagination');
+        if (!container) return;
+        
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        
+        if (totalPages <= 1) {
+            container.innerHTML = '';
+            return;
+        }
+        
+        let html = '<div class="pagination-wrapper">';
+        
+        html += `
+            <button class="page-btn" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        `;
+        
+        const startPage = Math.max(1, currentPage - 2);
+        const endPage = Math.min(totalPages, currentPage + 2);
+        
+        if (startPage > 1) {
+            html += `<button class="page-btn" onclick="changePage(1)">1</button>`;
+            if (startPage > 2) html += `<span class="page-dots">...</span>`;
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            html += `
+                <button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">
+                    ${i}
+                </button>
+            `;
+        }
+        
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) html += `<span class="page-dots">...</span>`;
+            html += `<button class="page-btn" onclick="changePage(${totalPages})">${totalPages}</button>`;
+        }
+        
+        html += `
+            <button class="page-btn" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        `;
+        
+        html += `<span class="page-info">Total: ${totalItems} data</span>`;
+        html += '</div>';
+        
+        container.innerHTML = html;
+    }
+    
+    function changePage(page) {
+        if (page < 1 || page > Math.ceil(totalItems / itemsPerPage)) return;
+        currentPage = page;
+        const searchValue = document.getElementById('searchInput').value;
+        renderServicesTable(allServices, page, searchValue);
+        renderPagination();
+    }
+    
+    function searchServices() {
+        currentPage = 1;
+        const searchValue = document.getElementById('searchInput').value;
+        renderServicesTable(allServices, 1, searchValue);
+        renderPagination();
+    }
+    
+    // ===============================
+    // MODAL SERVICE (CREATE/EDIT)
+    // ===============================
+    function openServiceModal() {
+        currentEditId = null;
+        document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus-circle"></i> Tambah Service';
+        document.getElementById('serviceId').value = '';
+        document.getElementById('name').value = '';
+        document.getElementById('url').value = '';
+        document.getElementById('service_type').value = 'HTTP';
+        document.getElementById('serviceModal').style.display = 'flex';
+    }
+    
+    function openEditService(id, name, url, type) {
+        currentEditId = id;
+        document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit"></i> Edit Service';
+        document.getElementById('serviceId').value = id;
+        document.getElementById('name').value = name;
+        document.getElementById('url').value = url;
+        document.getElementById('service_type').value = type;
+        document.getElementById('serviceModal').style.display = 'flex';
+    }
+    
+    function closeServiceModal() {
+        document.getElementById('serviceModal').style.display = 'none';
+        document.getElementById('serviceForm').reset();
+        currentEditId = null;
+    }
+    
+    async function saveService() {
+        const id = document.getElementById('serviceId').value;
+        const name = document.getElementById('name').value.trim();
+        const url = document.getElementById('url').value.trim();
+        const service_type = document.getElementById('service_type').value;
+        
+        if (!name || !url) {
+            showNotification('Nama dan URL wajib diisi!', 'error');
+            return;
+        }
+        
+        const token = localStorage.getItem('access');
+        const method = id ? 'PUT' : 'POST';
+        const apiUrl = id ? `/api/services/${id}/` : '/api/services/';
+        
+        try {
+            const response = await fetch(apiUrl, {
+                method: method,
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name, url, service_type })
+            });
+            
+            if (!response.ok) throw new Error('Gagal menyimpan');
+            
+            showNotification(id ? 'Service berhasil diupdate' : 'Service berhasil ditambahkan', 'success');
+            closeServiceModal();
+            loadServices();
+            
+        } catch (error) {
+            showNotification('Gagal menyimpan data', 'error');
+        }
+    }
+    
+    // ===============================
+    // DELETE SERVICE
+    // ===============================
+    function openDeleteService(id, name) {
+        currentDeleteId = id;
+        document.getElementById('deleteText').innerHTML = `Yakin ingin menghapus <b>${escapeHtml(name)}</b>?`;
+        document.getElementById('deleteModal').style.display = 'flex';
+    }
+    
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').style.display = 'none';
+        currentDeleteId = null;
+    }
+    
+    async function confirmDelete() {
+        if (!currentDeleteId) return;
+        
+        const token = localStorage.getItem('access');
+        
+        try {
+            const response = await fetch(`/api/services/${currentDeleteId}/`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) throw new Error('Gagal menghapus');
+            
+            showNotification('Service berhasil dihapus', 'success');
+            closeDeleteModal();
+            loadServices();
+            
+        } catch (error) {
+            showNotification('Gagal menghapus data', 'error');
+        }
+    }
+    
+    // ===============================
+    // NOTIFICATION
+    // ===============================
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        const bgColor = type === 'success' ? '#10b981' : '#ef4444';
+        const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+        
+        notification.innerHTML = `
+            <div style="
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${bgColor};
+                color: white;
+                padding: 12px 20px;
+                border-radius: 10px;
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            ">
+                <i class="fas ${icon}"></i>
+                <span>${escapeHtml(message)}</span>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    }
+    
+    // ===============================
+    // UTILITIES
+    // ===============================
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // ===============================
+    // INITIALIZE
+    // ===============================
+    document.addEventListener('DOMContentLoaded', () => {
+        loadServices();
+        
+        // Close modal when clicking outside
+        window.onclick = function(e) {
+            const serviceModal = document.getElementById('serviceModal');
+            const deleteModal = document.getElementById('deleteModal');
+            if (e.target === serviceModal) closeServiceModal();
+            if (e.target === deleteModal) closeDeleteModal();
+        };
+        
+        // Close modal with ESC key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeServiceModal();
+                closeDeleteModal();
+            }
+        });
+        
+        // Set confirm delete button
+        const confirmBtn = document.getElementById('btnConfirmDelete');
+        if (confirmBtn) confirmBtn.onclick = confirmDelete;
     });
-});
-
-// tutup modal
-function closeModal() {
-    document.getElementById('deleteModal').style.display = 'none';
-}
-
-// klik luar modal
-window.onclick = function(e) {
-    const modal = document.getElementById('deleteModal');
-    if (e.target === modal) {
-        closeModal();
-    }
-}
-
-// tombol ESC untuk tutup modal
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeModal();
-    }
-});
 </script>
 
 {% endblock %}
