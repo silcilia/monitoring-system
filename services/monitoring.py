@@ -22,7 +22,7 @@ def check_service(url):
 def send_whatsapp(message, number):
     url = "https://api.fonnte.com/send"
     headers = {
-        "Authorization": "ISI_TOKEN_KAMU"
+        "Authorization": "jus"
     }
 
     data = {

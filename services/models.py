@@ -1,5 +1,6 @@
 from django.db import models
 
+
 # =========================
 # SERVICE
 # =========================
@@ -7,6 +8,7 @@ class Service(models.Model):
     STATUS_CHOICES = [
         ('UP', 'UP'),
         ('DOWN', 'DOWN'),
+        ('UNKNOWN', 'UNKNOWN'),
     ]
 
     TYPE_CHOICES = [
@@ -17,10 +19,25 @@ class Service(models.Model):
     name = models.CharField(max_length=100)
     url = models.CharField(max_length=255)
     service_type = models.CharField(max_length=10, choices=TYPE_CHOICES)
-    last_status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='UP')
+
+    # 🔥 STATUS TERAKHIR
+    last_status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default='UNKNOWN'
+    )
+
+    # 🔥 WAKTU TERAKHIR CEK
+    last_checked = models.DateTimeField(null=True, blank=True)
+
+    # 🔥 PENYEBAB DOWN (HTTP 500 / timeout / dll)
+    last_down_reason = models.CharField(max_length=255, null=True, blank=True)
+
+    # 🔥 ANTI SPAM NOTIF
+    last_notified = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.service_type})"
 
 
 # =========================
@@ -42,14 +59,21 @@ class ServiceContact(models.Model):
     service = models.ForeignKey(Service, on_delete=models.CASCADE)
     contact = models.ForeignKey(Contact, on_delete=models.CASCADE)
 
+    def __str__(self):
+        return f"{self.service.name} -> {self.contact.name}"
+
 
 # =========================
-# LOG SERVICE
+# LOG SERVICE (HISTORY)
 # =========================
 class Log(models.Model):
     service = models.ForeignKey(Service, on_delete=models.CASCADE)
     status = models.CharField(max_length=10)
+    message = models.CharField(max_length=255, null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.service.name} - {self.status} - {self.timestamp}"
 
 
 # =========================
@@ -72,6 +96,9 @@ class DeviceContact(models.Model):
     device = models.ForeignKey(Device, on_delete=models.CASCADE)
     contact = models.ForeignKey(Contact, on_delete=models.CASCADE)
 
+    def __str__(self):
+        return f"{self.device.name} -> {self.contact.name}"
+
 
 # =========================
 # POWER LOG
@@ -82,3 +109,6 @@ class PowerLog(models.Model):
     current = models.FloatField()
     power = models.FloatField()
     timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.device.name} - {self.power}W"
