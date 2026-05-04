@@ -115,6 +115,9 @@
         gap: 8px;
         margin-top: 20px;
         flex-wrap: wrap;
+        padding: 15px;
+        background: #f8fafc;
+        border-radius: 12px;
     }
     
     .page-btn {
@@ -153,10 +156,10 @@
     .page-info {
         margin-left: 12px;
         padding: 6px 12px;
-        background: #f1f5f9;
+        background: #e2e8f0;
         border-radius: 8px;
         font-size: 12px;
-        color: #64748b;
+        color: #475569;
     }
     
     /* Modal Form */
@@ -207,13 +210,64 @@
     .btn-secondary:hover {
         background: #e2e8f0;
     }
+    
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+
+    /* Header content */
+    .header-content {
+        background: white;
+        border-radius: 16px;
+        padding: 20px 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e2e8f0;
+    }
+    
+    .header-content h2 {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 0 0 8px 0;
+        font-size: 24px;
+        font-weight: 700;
+        color: #1e293b;
+    }
+    
+    .header-content h2 i {
+        color: #1e3a5f;
+        font-size: 28px;
+    }
+    
+    .service-count {
+        background: #1e3a5f;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 14px;
+        margin-left: 10px;
+    }
+    
+    .header-content p {
+        color: #64748b;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
 </style>
 
 <div class="page-header">
     <div class="header-content">
         <h2>
             <i class="fas fa-server"></i>
-            <span class="title-text">Daftar Service</span>
+            Daftar Service
             <span class="service-count" id="serviceCount">0 Service</span>
         </h2>
         <p>
@@ -265,7 +319,7 @@
             <i class="fas fa-plus-circle"></i> Tambah Service
         </h3>
         
-        <form id="serviceForm">
+        <form id="serviceForm" onsubmit="return false;">
             <input type="hidden" id="serviceId">
             
             <input type="text" id="name" placeholder="Nama Service" required>
@@ -319,6 +373,24 @@
     let allServices = [];
     
     // ===============================
+    // CSRF TOKEN HELPER
+    // ===============================
+    function getCSRFToken() {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.startsWith('csrftoken=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(10));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // ===============================
     // LOAD SERVICES FROM API
     // ===============================
     async function loadServices(page = 1, search = '') {
@@ -334,26 +406,35 @@
         `;
         
         try {
-            const token = localStorage.getItem('access');
-            if (!token) {
-                window.location.href = '/login/';
-                return;
-            }
-            
             const response = await fetch('/api/services/', {
                 method: 'GET',
+                credentials: 'same-origin',
                 headers: {
-                    'Authorization': 'Bearer ' + token,
-                    'Content-Type': 'application/json'
+                    'X-Requested-With': 'XMLHttpRequest'
                 }
             });
             
-            if (response.status === 401) {
+            if (response.status === 401 || response.status === 403) {
                 window.location.href = '/login/';
                 return;
             }
             
             const data = await response.json();
+            
+            // Handle jika response error
+            if (data.error) {
+                console.error('Error:', data.error);
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="empty-state">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            ${data.error}
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
             allServices = data;
             totalItems = data.length;
             
@@ -370,7 +451,11 @@
                 <tr>
                     <td colspan="5" class="empty-state">
                         <i class="fas fa-exclamation-triangle"></i>
-                        Gagal memuat data
+                        Gagal memuat data. Pastikan Anda sudah login.
+                        <br>
+                        <button class="btn-primary" onclick="location.reload()" style="margin-top: 10px;">
+                            <i class="fas fa-sync-alt"></i> Muat Ulang
+                        </button>
                     </td>
                 </tr>
             `;
@@ -414,7 +499,7 @@
         }
         
         tbody.innerHTML = pageData.map(s => `
-            <tr>
+            <td>
                 <td data-label="Nama">
                     <strong>${escapeHtml(s.name)}</strong>
                 </td>
@@ -461,12 +546,14 @@
         
         let html = '<div class="pagination-wrapper">';
         
+        // Previous button
         html += `
             <button class="page-btn" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
                 <i class="fas fa-chevron-left"></i>
             </button>
         `;
         
+        // Page numbers
         const startPage = Math.max(1, currentPage - 2);
         const endPage = Math.min(totalPages, currentPage + 2);
         
@@ -488,6 +575,7 @@
             html += `<button class="page-btn" onclick="changePage(${totalPages})">${totalPages}</button>`;
         }
         
+        // Next button
         html += `
             <button class="page-btn" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
                 <i class="fas fa-chevron-right"></i>
@@ -555,27 +643,35 @@
             return;
         }
         
-        const token = localStorage.getItem('access');
         const method = id ? 'PUT' : 'POST';
         const apiUrl = id ? `/api/services/${id}/` : '/api/services/';
         
         try {
             const response = await fetch(apiUrl, {
                 method: method,
+                credentials: 'same-origin',
                 headers: {
-                    'Authorization': 'Bearer ' + token,
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCSRFToken()
                 },
                 body: JSON.stringify({ name, url, service_type })
             });
             
+            if (response.status === 403) {
+                showNotification('CSRF token error. Silakan refresh halaman.', 'error');
+                return;
+            }
+            
             if (!response.ok) throw new Error('Gagal menyimpan');
             
-            showNotification(id ? 'Service berhasil diupdate' : 'Service berhasil ditambahkan', 'success');
+            const result = await response.json();
+            showNotification(result.message || (id ? 'Service berhasil diupdate' : 'Service berhasil ditambahkan'), 'success');
             closeServiceModal();
             loadServices();
             
         } catch (error) {
+            console.error('Error:', error);
             showNotification('Gagal menyimpan data', 'error');
         }
     }
@@ -597,24 +693,31 @@
     async function confirmDelete() {
         if (!currentDeleteId) return;
         
-        const token = localStorage.getItem('access');
-        
         try {
             const response = await fetch(`/api/services/${currentDeleteId}/`, {
                 method: 'DELETE',
+                credentials: 'same-origin',
                 headers: {
-                    'Authorization': 'Bearer ' + token,
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCSRFToken()
                 }
             });
             
+            if (response.status === 403) {
+                showNotification('CSRF token error. Silakan refresh halaman.', 'error');
+                return;
+            }
+            
             if (!response.ok) throw new Error('Gagal menghapus');
             
-            showNotification('Service berhasil dihapus', 'success');
+            const result = await response.json();
+            showNotification(result.message || 'Service berhasil dihapus', 'success');
             closeDeleteModal();
             loadServices();
             
         } catch (error) {
+            console.error('Error:', error);
             showNotification('Gagal menghapus data', 'error');
         }
     }
@@ -622,8 +725,16 @@
     // ===============================
     // NOTIFICATION
     // ===============================
+    let notificationTimeout = null;
+    
     function showNotification(message, type = 'success') {
+        // Hapus notifikasi lama
+        const oldNotif = document.querySelector('.custom-notification');
+        if (oldNotif) oldNotif.remove();
+        if (notificationTimeout) clearTimeout(notificationTimeout);
+        
         const notification = document.createElement('div');
+        notification.className = 'custom-notification';
         const bgColor = type === 'success' ? '#10b981' : '#ef4444';
         const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
         
@@ -641,16 +752,38 @@
                 align-items: center;
                 gap: 10px;
                 box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                animation: slideInRight 0.3s ease;
             ">
                 <i class="fas ${icon}"></i>
                 <span>${escapeHtml(message)}</span>
             </div>
         `;
         
+        // Tambahkan style animasi jika belum ada
+        if (!document.querySelector('#notification-style')) {
+            const style = document.createElement('style');
+            style.id = 'notification-style';
+            style.textContent = `
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOutRight {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
         document.body.appendChild(notification);
         
-        setTimeout(() => {
-            notification.remove();
+        notificationTimeout = setTimeout(() => {
+            const notif = document.querySelector('.custom-notification');
+            if (notif) {
+                notif.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => notif.remove(), 300);
+            }
         }, 3000);
     }
     
@@ -688,7 +821,12 @@
         
         // Set confirm delete button
         const confirmBtn = document.getElementById('btnConfirmDelete');
-        if (confirmBtn) confirmBtn.onclick = confirmDelete;
+        if (confirmBtn) {
+            // Hapus event listener lama jika ada
+            const newBtn = confirmBtn.cloneNode(true);
+            confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
+            newBtn.onclick = confirmDelete;
+        }
     });
 </script>
 

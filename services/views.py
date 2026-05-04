@@ -5,6 +5,7 @@ from django.views import View
 from django.utils import timezone
 from datetime import timedelta
 from collections import defaultdict
+from django.http import JsonResponse
 
 from .models import Service, Contact, PowerLog, Log
 
@@ -15,24 +16,12 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 
 # ======================
-# DRF
-# ======================
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.authentication import SessionAuthentication, BasicAuthentication
-
-# ======================
-# Custom Authentication
-# ======================
-from .authentication import SafeJWTAuthentication
-
-# ======================
-# CSRF FIX
+# CSRF & JSON
 # ======================
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 from django.utils.decorators import method_decorator
+import json
 
 
 # ======================
@@ -87,10 +76,15 @@ def get_dashboard_data():
 # ======================
 # DASHBOARD (WEB)
 # ======================
+
 class DashboardView(TemplateView):
     template_name = 'services/dashboard.html'
 
     def dispatch(self, request, *args, **kwargs):
+        print(f"DashboardView - User: {request.user}")
+        print(f"DashboardView - Is Authenticated: {request.user.is_authenticated}")
+        print(f"DashboardView - Session Key: {request.session.session_key}")
+        
         if not request.user.is_authenticated:
             return redirect('/login/')
         return super().dispatch(request, *args, **kwargs)
@@ -99,18 +93,6 @@ class DashboardView(TemplateView):
         context = super().get_context_data(**kwargs)
         context.update(get_dashboard_data())
         return context
-
-
-# ======================
-# DASHBOARD API
-# ======================
-class DashboardAPI(APIView):
-    authentication_classes = [SafeJWTAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        return Response(get_dashboard_data())
-
 
 # ======================
 # SERVICES (WEB)
@@ -153,20 +135,24 @@ class ServiceUpdateView(UpdateView):
 class ServiceDeleteView(View):
     def post(self, request, pk):
         if not request.user.is_authenticated:
-            return redirect('/login/')
+            return JsonResponse({"error": "Unauthorized"}, status=401)
         service = get_object_or_404(Service, pk=pk)
         service.delete()
-        return redirect('service_list')
+        return JsonResponse({"message": "Service dihapus"})
 
 
 # ======================
-# SERVICE API (FIXED)
+# SERVICE API
 # ======================
-class ServiceAPI(APIView):
-    authentication_classes = [SafeJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+class ServiceAPI(View):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
 
     def get(self, request):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+        
         services = Service.objects.all()
         data = [
             {
@@ -177,36 +163,54 @@ class ServiceAPI(APIView):
                 "status": s.last_status
             } for s in services
         ]
-        return Response(data)
+        return JsonResponse(data, safe=False)
 
     def post(self, request):
-        service = Service.objects.create(
-            name=request.data.get("name"),
-            url=request.data.get("url"),
-            service_type=request.data.get("service_type")
-        )
-        return Response({
-            "message": "Service berhasil ditambahkan",
-            "id": service.id
-        }, status=201)
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+        
+        try:
+            data = json.loads(request.body)
+            service = Service.objects.create(
+                name=data.get("name"),
+                url=data.get("url"),
+                service_type=data.get("service_type")
+            )
+            return JsonResponse({
+                "message": "Service berhasil ditambahkan",
+                "id": service.id
+            }, status=201)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
 
 
-class ServiceDetailAPI(APIView):
-    authentication_classes = [SafeJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+class ServiceDetailAPI(View):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
 
     def put(self, request, pk):
-        service = get_object_or_404(Service, pk=pk)
-        service.name = request.data.get("name")
-        service.url = request.data.get("url")
-        service.service_type = request.data.get("service_type")
-        service.save()
-        return Response({"message": "Service diupdate"})
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+        
+        try:
+            data = json.loads(request.body)
+            service = get_object_or_404(Service, pk=pk)
+            service.name = data.get("name")
+            service.url = data.get("url")
+            service.service_type = data.get("service_type")
+            service.save()
+            return JsonResponse({"message": "Service diupdate"})
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
 
     def delete(self, request, pk):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+        
         service = get_object_or_404(Service, pk=pk)
         service.delete()
-        return Response({"message": "Service dihapus"})
+        return JsonResponse({"message": "Service dihapus"})
 
 
 # ======================
@@ -250,20 +254,24 @@ class ContactUpdateView(UpdateView):
 class ContactDeleteView(View):
     def post(self, request, pk):
         if not request.user.is_authenticated:
-            return redirect('/login/')
+            return JsonResponse({"error": "Unauthorized"}, status=401)
         contact = get_object_or_404(Contact, pk=pk)
         contact.delete()
-        return redirect('contact_list')
+        return JsonResponse({"message": "Contact dihapus"})
 
 
 # ======================
-# CONTACT API (FIXED)
+# CONTACT API
 # ======================
-class ContactAPI(APIView):
-    authentication_classes = [SafeJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+class ContactAPI(View):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
 
     def get(self, request):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+        
         contacts = Contact.objects.all()
         data = [
             {
@@ -272,34 +280,52 @@ class ContactAPI(APIView):
                 "phone": c.phone_number
             } for c in contacts
         ]
-        return Response(data)
+        return JsonResponse(data, safe=False)
 
     def post(self, request):
-        contact = Contact.objects.create(
-            name=request.data.get("name"),
-            phone_number=request.data.get("phone_number")
-        )
-        return Response({
-            "message": "Contact berhasil ditambahkan",
-            "id": contact.id
-        }, status=201)
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+        
+        try:
+            data = json.loads(request.body)
+            contact = Contact.objects.create(
+                name=data.get("name"),
+                phone_number=data.get("phone")
+            )
+            return JsonResponse({
+                "message": "Contact berhasil ditambahkan",
+                "id": contact.id
+            }, status=201)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
 
 
-class ContactDetailAPI(APIView):
-    authentication_classes = [SafeJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+class ContactDetailAPI(View):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
 
     def put(self, request, pk):
-        contact = get_object_or_404(Contact, pk=pk)
-        contact.name = request.data.get("name")
-        contact.phone_number = request.data.get("phone_number")
-        contact.save()
-        return Response({"message": "Contact diupdate"})
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+        
+        try:
+            data = json.loads(request.body)
+            contact = get_object_or_404(Contact, pk=pk)
+            contact.name = data.get("name")
+            contact.phone_number = data.get("phone")
+            contact.save()
+            return JsonResponse({"message": "Contact diupdate"})
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
 
     def delete(self, request, pk):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+        
         contact = get_object_or_404(Contact, pk=pk)
         contact.delete()
-        return Response({"message": "Contact dihapus"})
+        return JsonResponse({"message": "Contact dihapus"})
 
 
 # ======================
@@ -315,110 +341,135 @@ class PowerView(TemplateView):
 
 
 # ======================
-# POWER API (FIXED)
+# POWER API
 # ======================
-class PowerDataAPI(APIView):
-    authentication_classes = [SafeJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+class PowerDataAPI(View):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
 
     def get(self, request):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+        
         logs = PowerLog.objects.order_by('-timestamp')[:10]
-
-        return Response({
+        
+        data = {
             "labels": [log.timestamp.strftime("%H:%M:%S") for log in logs][::-1],
             "voltage": [log.voltage for log in logs][::-1],
             "current": [log.current for log in logs][::-1],
             "power": [log.power for log in logs][::-1],
-        })
+        }
+        return JsonResponse(data)
 
 
 # ======================
 # IoT API (API KEY)
 # ======================
-class PowerCreateAPI(APIView):
-    authentication_classes = []
-    permission_classes = []
+class PowerCreateAPI(View):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
 
     def post(self, request):
         api_key = request.headers.get('X-API-KEY')
 
         if api_key != 'SECRET123':
-            return Response({'error': 'Unauthorized'}, status=403)
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
 
-        PowerLog.objects.create(
-            voltage=request.data.get("voltage"),
-            current=request.data.get("current"),
-            power=request.data.get("power")
-        )
-
-        return Response({"message": "Data power masuk"})
+        try:
+            data = json.loads(request.body)
+            PowerLog.objects.create(
+                voltage=data.get("voltage"),
+                current=data.get("current"),
+                power=data.get("power")
+            )
+            return JsonResponse({"message": "Data power masuk"})
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
 
 
 # ======================
-# AUTH API (FIXED)
+# AUTH API
 # ======================
-class LoginAPI(APIView):
-    authentication_classes = []
-    permission_classes = []
+class LoginAPI(View):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
 
     def post(self, request):
-        username = request.data.get("username")
-        password = request.data.get("password")
+        try:
+            data = json.loads(request.body)
+            username = data.get("username")
+            password = data.get("password")
+        except:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
 
         if not username or not password:
-            return Response({"error": "Username & password wajib"}, status=400)
+            return JsonResponse({"error": "Username & password wajib"}, status=400)
 
         user = authenticate(request, username=username, password=password)
 
         if user:
+            # 🔥 LOGIN USER
             login(request, user)
             
-            # Generate JWT token
-            from rest_framework_simplejwt.tokens import RefreshToken
-            refresh = RefreshToken.for_user(user)
+            # 🔥 FORCE SAVE SESSION
+            request.session.save()
             
-            return Response({
+            # 🔥 PRINT UNTUK DEBUG
+            print(f"Login berhasil: {username}")
+            print(f"Session key: {request.session.session_key}")
+            
+            return JsonResponse({
+                "success": True,
                 "message": "Login berhasil",
-                "username": user.username,
-                "access": str(refresh.access_token),
-                "refresh": str(refresh)
+                "username": user.username
             })
 
-        return Response({"error": "Username atau password salah"}, status=401)
+        print(f"❌ Login gagal: {username}")
+        return JsonResponse({"success": False, "error": "Username atau password salah"}, status=401)
 
 
-class RegisterAPI(APIView):
-    authentication_classes = []
-    permission_classes = []
+class RegisterAPI(View):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
 
     def post(self, request):
-        username = request.data.get("username")
-        password = request.data.get("password")
+        try:
+            data = json.loads(request.body)
+            username = data.get("username")
+            password = data.get("password")
+        except:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
 
         if not username or not password:
-            return Response({"error": "Username & password wajib"}, status=400)
+            return JsonResponse({"error": "Username & password wajib"}, status=400)
 
         if User.objects.filter(username=username).exists():
-            return Response({"error": "Username sudah ada"}, status=400)
+            return JsonResponse({"error": "Username sudah ada"}, status=400)
 
         user = User.objects.create_user(
             username=username,
             password=password
         )
 
-        return Response({
+        return JsonResponse({
             "message": "User berhasil dibuat",
             "username": user.username
         })
 
 
-class LogoutAPI(APIView):
-    authentication_classes = [SafeJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+class LogoutAPI(View):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
 
     def post(self, request):
-        logout(request)
-        return Response({"message": "Logout berhasil"})
+        if request.user.is_authenticated:
+            logout(request)
+        return JsonResponse({"message": "Logout berhasil"})
 
 
 # ======================
@@ -426,3 +477,44 @@ class LogoutAPI(APIView):
 # ======================
 class LoginPageView(TemplateView):
     template_name = 'services/login.html'
+
+
+# ======================
+# DASHBOARD API
+# ======================
+class DashboardAPI(View):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+        return JsonResponse(get_dashboard_data())
+
+
+# ======================
+# CHECK AUTH API (Untuk Debug)
+# ======================
+class CheckAuthAPI(View):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def get(self, request):
+        return JsonResponse({
+            "is_authenticated": request.user.is_authenticated,
+            "username": request.user.username if request.user.is_authenticated else None
+        })
+
+@method_decorator(csrf_exempt, name='dispatch')
+class DebugSessionAPI(View):
+    def get(self, request):
+        return JsonResponse({
+            "is_authenticated": request.user.is_authenticated,
+            "username": request.user.username if request.user.is_authenticated else None,
+            "session_key": request.session.session_key,
+            "session_items": dict(request.session.items()),
+            "cookies": request.COOKIES.get('sessionid', None)
+        })
+

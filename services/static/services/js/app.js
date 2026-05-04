@@ -46,9 +46,11 @@ async function apiFetch(url, options = {}) {
     try {
         const response = await fetch(url, finalOptions);
 
+        // 🔥 JANGAN LANGSUNG REDIRECT KE LOGIN
+        // Biarkan error 401 ditangani oleh caller
         if (response.status === 401) {
-            window.location.href = '/login/';
-            return;
+            console.warn('Unauthorized access to:', url);
+            throw new Error('Unauthorized');
         }
 
         if (!response.ok) {
@@ -64,7 +66,10 @@ async function apiFetch(url, options = {}) {
 
     } catch (error) {
         console.error('API ERROR:', error);
-        showNotification(error.message, 'error');
+        // Jangan tampilkan notifikasi untuk error 401
+        if (!error.message.includes('Unauthorized')) {
+            showNotification(error.message, 'error');
+        }
         throw error;
     }
 }
@@ -100,7 +105,7 @@ function showNotification(message, type = 'success') {
             animation: slideInRight 0.3s ease;
         ">
             <i class="fas ${icon}"></i>
-            <span>${message}</span>
+            <span>${escapeHtml(message)}</span>
         </div>
     `;
 
@@ -172,14 +177,19 @@ async function loadServices(page = 1, search = '') {
         renderPagination('service');
 
     } catch (error) {
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="5" class="empty-state">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    Gagal memuat data
-                </td>
-            </tr>
-        `;
+        if (error.message === 'Unauthorized') {
+            // Redirect hanya jika benar-benar unauthorized
+            window.location.href = '/login/';
+        } else {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="empty-state">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Gagal memuat data: ${error.message}
+                    </td>
+                </tr>
+            `;
+        }
     }
 }
 
@@ -208,6 +218,9 @@ function renderServicesTable(data, page, search) {
                 <td colspan="5" class="empty-state">
                     <i class="fas fa-inbox"></i>
                     <p>Belum ada data service</p>
+                    <button class="btn-primary" onclick="openCreate()" style="margin-top: 10px;">
+                        <i class="fas fa-plus"></i> Tambah Service Sekarang
+                    </button>
                 </td>
             </tr>
         `;
@@ -270,14 +283,18 @@ async function loadContacts(page = 1, search = '') {
         renderPagination('contact');
 
     } catch (error) {
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="3" class="empty-state">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    Gagal memuat data
-                </td>
-            </tr>
-        `;
+        if (error.message === 'Unauthorized') {
+            window.location.href = '/login/';
+        } else {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="3" class="empty-state">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Gagal memuat data: ${error.message}
+                    </td>
+                </tr>
+            `;
+        }
     }
 }
 
@@ -305,6 +322,9 @@ function renderContactsTable(data, page, search) {
                 <td colspan="3" class="empty-state">
                     <i class="fas fa-inbox"></i>
                     <p>Belum ada data contact</p>
+                    <button class="btn-primary" onclick="openCreateContact()" style="margin-top: 10px;">
+                        <i class="fas fa-plus"></i> Tambah Contact Sekarang
+                    </button>
                 </td>
             </tr>
         `;
@@ -323,18 +343,18 @@ function renderContactsTable(data, page, search) {
             </td>
             <td data-label="WhatsApp">
                 <span class="phone-number">
-                    <i class="fab fa-whatsapp"></i> ${escapeHtml(c.phone)}
+                    <i class="fab fa-whatsapp"></i> ${escapeHtml(c.phone || c.phone_number)}
                 </span>
             </td>
             <td data-label="Aksi">
                 <div class="action-buttons">
-                    <button class="btn-edit" onclick="openEditContact(${c.id}, '${escapeHtml(c.name)}', '${escapeHtml(c.phone)}')">
+                    <button class="btn-edit" onclick="openEditContact(${c.id}, '${escapeHtml(c.name)}', '${escapeHtml(c.phone || c.phone_number)}')">
                         <i class="fas fa-edit"></i> Edit
                     </button>
                     <button class="btn-delete" onclick="confirmDeleteContact(${c.id}, '${escapeHtml(c.name)}')">
                         <i class="fas fa-trash"></i> Hapus
                     </button>
-                    <button class="btn-icon" onclick="copyToClipboard('${escapeHtml(c.phone)}')">
+                    <button class="btn-icon" onclick="copyToClipboard('${escapeHtml(c.phone || c.phone_number)}')">
                         <i class="fas fa-copy"></i>
                     </button>
                 </div>
@@ -359,14 +379,12 @@ function renderPagination(type) {
 
     let html = '<div class="pagination-wrapper">';
     
-    // Previous button
     html += `
         <button class="page-btn" onclick="changePage(${currentPage - 1}, '${type}')" ${currentPage === 1 ? 'disabled' : ''}>
             <i class="fas fa-chevron-left"></i>
         </button>
     `;
     
-    // Page numbers
     const startPage = Math.max(1, currentPage - 2);
     const endPage = Math.min(totalPages, currentPage + 2);
     
@@ -388,68 +406,14 @@ function renderPagination(type) {
         html += `<button class="page-btn" onclick="changePage(${totalPages}, '${type}')">${totalPages}</button>`;
     }
     
-    // Next button
     html += `
         <button class="page-btn" onclick="changePage(${currentPage + 1}, '${type}')" ${currentPage === totalPages ? 'disabled' : ''}>
             <i class="fas fa-chevron-right"></i>
         </button>
     `;
     
-    // Info
     html += `<span class="page-info">Total: ${totalItems} data</span>`;
     html += '</div>';
-    
-    // Tambahkan style pagination jika belum ada
-    if (!document.querySelector('#pagination-style')) {
-        const style = document.createElement('style');
-        style.id = 'pagination-style';
-        style.textContent = `
-            .pagination-wrapper {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                gap: 8px;
-                margin-top: 20px;
-                flex-wrap: wrap;
-            }
-            .page-btn {
-                background: white;
-                border: 1px solid #e2e8f0;
-                padding: 8px 12px;
-                border-radius: 8px;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                color: #1e293b;
-            }
-            .page-btn:hover:not(:disabled) {
-                background: #1e3a5f;
-                color: white;
-                border-color: #1e3a5f;
-            }
-            .page-btn.active {
-                background: #1e3a5f;
-                color: white;
-                border-color: #1e3a5f;
-            }
-            .page-btn:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-            }
-            .page-dots {
-                padding: 0 4px;
-                color: #64748b;
-            }
-            .page-info {
-                margin-left: 12px;
-                padding: 6px 12px;
-                background: #f1f5f9;
-                border-radius: 8px;
-                font-size: 12px;
-                color: #64748b;
-            }
-        `;
-        document.head.appendChild(style);
-    }
     
     paginationContainer.innerHTML = html;
 }
@@ -465,9 +429,11 @@ function changePage(page, type) {
     const searchValue = searchInput ? searchInput.value : '';
     
     if (type === 'service') {
-        loadServices(page, searchValue);
+        renderServicesTable(currentServicesData, page, searchValue);
+        renderPagination('service');
     } else if (type === 'contact') {
-        loadContacts(page, searchValue);
+        renderContactsTable(currentContactsData, page, searchValue);
+        renderPagination('contact');
     }
 }
 
@@ -482,9 +448,11 @@ function searchTable() {
     const path = window.location.pathname;
     
     if (path.includes('/services/')) {
-        loadServices(1, searchValue);
+        renderServicesTable(currentServicesData, 1, searchValue);
+        renderPagination('service');
     } else if (path.includes('/contacts/')) {
-        loadContacts(1, searchValue);
+        renderContactsTable(currentContactsData, 1, searchValue);
+        renderPagination('contact');
     }
 }
 
@@ -546,7 +514,9 @@ async function saveService() {
         loadServices();
 
     } catch (error) {
-        showNotification('Gagal simpan data', 'error');
+        if (!error.message.includes('Unauthorized')) {
+            showNotification('Gagal simpan data', 'error');
+        }
     }
 }
 
@@ -572,7 +542,9 @@ async function deleteService() {
         loadServices();
         
     } catch (error) {
-        showNotification('Gagal hapus service', 'error');
+        if (!error.message.includes('Unauthorized')) {
+            showNotification('Gagal hapus service', 'error');
+        }
     }
 }
 
@@ -582,10 +554,17 @@ async function deleteService() {
 function openCreateContact() {
     currentEditId = null;
     
-    document.getElementById('contactModalTitle').innerHTML = '<i class="fas fa-plus-circle"></i> Tambah Contact';
-    document.getElementById('contactId').value = '';
-    document.getElementById('contactName').value = '';
-    document.getElementById('contactPhone').value = '';
+    const modalTitle = document.getElementById('contactModalTitle');
+    if (modalTitle) {
+        modalTitle.innerHTML = '<i class="fas fa-plus-circle"></i> Tambah Contact';
+    }
+    const contactId = document.getElementById('contactId');
+    const contactName = document.getElementById('contactName');
+    const contactPhone = document.getElementById('contactPhone');
+    
+    if (contactId) contactId.value = '';
+    if (contactName) contactName.value = '';
+    if (contactPhone) contactPhone.value = '';
     
     showContactModal();
 }
@@ -593,10 +572,17 @@ function openCreateContact() {
 function openEditContact(id, name, phone) {
     currentEditId = id;
     
-    document.getElementById('contactModalTitle').innerHTML = '<i class="fas fa-edit"></i> Edit Contact';
-    document.getElementById('contactId').value = id;
-    document.getElementById('contactName').value = name;
-    document.getElementById('contactPhone').value = phone;
+    const modalTitle = document.getElementById('contactModalTitle');
+    if (modalTitle) {
+        modalTitle.innerHTML = '<i class="fas fa-edit"></i> Edit Contact';
+    }
+    const contactId = document.getElementById('contactId');
+    const contactName = document.getElementById('contactName');
+    const contactPhone = document.getElementById('contactPhone');
+    
+    if (contactId) contactId.value = id;
+    if (contactName) contactName.value = name;
+    if (contactPhone) contactPhone.value = phone;
     
     showContactModal();
 }
@@ -604,10 +590,10 @@ function openEditContact(id, name, phone) {
 async function saveContact() {
     const payload = {
         name: document.getElementById('contactName').value.trim(),
-        phone_number: document.getElementById('contactPhone').value.trim()
+        phone: document.getElementById('contactPhone').value.trim()
     };
 
-    if (!payload.name || !payload.phone_number) {
+    if (!payload.name || !payload.phone) {
         showNotification('Nama dan Nomor WA wajib diisi', 'error');
         return;
     }
@@ -631,7 +617,9 @@ async function saveContact() {
         loadContacts();
 
     } catch (error) {
-        showNotification('Gagal simpan data', 'error');
+        if (!error.message.includes('Unauthorized')) {
+            showNotification('Gagal simpan data', 'error');
+        }
     }
 }
 
@@ -657,7 +645,9 @@ async function deleteContact() {
         loadContacts();
         
     } catch (error) {
-        showNotification('Gagal hapus contact', 'error');
+        if (!error.message.includes('Unauthorized')) {
+            showNotification('Gagal hapus contact', 'error');
+        }
     }
 }
 
@@ -687,23 +677,28 @@ function copyToClipboard(text) {
 // 🪟 MODAL CONTROL
 // ===============================
 function showModal() {
-    document.getElementById('serviceModal').style.display = 'flex';
+    const modal = document.getElementById('serviceModal');
+    if (modal) modal.style.display = 'flex';
 }
 
 function closeModal() {
-    document.getElementById('serviceModal').style.display = 'none';
+    const modal = document.getElementById('serviceModal');
+    if (modal) modal.style.display = 'none';
 }
 
 function showContactModal() {
-    document.getElementById('contactModal').style.display = 'flex';
+    const modal = document.getElementById('contactModal');
+    if (modal) modal.style.display = 'flex';
 }
 
 function closeContactModal() {
-    document.getElementById('contactModal').style.display = 'none';
+    const modal = document.getElementById('contactModal');
+    if (modal) modal.style.display = 'none';
 }
 
 function closeDeleteModal() {
-    document.getElementById('deleteModal').style.display = 'none';
+    const modal = document.getElementById('deleteModal');
+    if (modal) modal.style.display = 'none';
     currentDeleteId = null;
     currentDeleteType = null;
 }
@@ -718,7 +713,6 @@ async function loadPowerData() {
     try {
         const data = await apiFetch('/api/power-data/');
         
-        // Update current voltage
         if (data.voltage && data.voltage.length > 0) {
             const currentVoltage = data.voltage[data.voltage.length - 1];
             const voltageElement = document.getElementById('currentVoltage');
@@ -727,7 +721,6 @@ async function loadPowerData() {
                 updateVoltageStatus(currentVoltage);
             }
             
-            // Update average
             const sum = data.voltage.reduce((a, b) => a + b, 0);
             const avg = (sum / data.voltage.length).toFixed(1);
             const avgElement = document.getElementById('avgVoltage');
@@ -736,7 +729,6 @@ async function loadPowerData() {
             }
         }
         
-        // Update chart
         if (powerChart && data.labels && data.voltage) {
             powerChart.data.labels = data.labels;
             powerChart.data.datasets[0].data = data.voltage;

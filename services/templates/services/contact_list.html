@@ -3,288 +3,48 @@
 {% block content %}
 
 <style>
-    /* CSS tambahan untuk perbaikan tampilan */
-    .page-header {
-        margin-bottom: 2rem;
-        position: relative;
-    }
-
-    /* Background gradient untuk header */
-    .page-header::before {
-        content: '';
-        position: absolute;
-        top: -20px;
-        left: -20px;
-        right: -20px;
-        bottom: -20px;
-        background: linear-gradient(135deg, rgba(67, 97, 238, 0.05) 0%, rgba(67, 97, 238, 0.02) 100%);
-        border-radius: 1.5rem;
-        z-index: -1;
-    }
-
-    .header-content {
-        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-        border-radius: 1rem;
-        padding: 1.5rem 2rem;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-        border: 1px solid rgba(67, 97, 238, 0.1);
-        position: relative;
-        overflow: hidden;
-    }
-
-    /* Efek dekorasi */
-    .header-content::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        right: 0;
-        width: 150px;
-        height: 150px;
-        background: radial-gradient(circle, rgba(67, 97, 238, 0.1) 0%, transparent 70%);
-        border-radius: 50%;
-    }
-
-    .header-content::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100px;
-        height: 100px;
-        background: radial-gradient(circle, rgba(6, 214, 160, 0.08) 0%, transparent 70%);
-        border-radius: 50%;
-    }
-
-    .page-header h2 {
+    .search-box {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        margin: 0 0 0.75rem 0;
-        position: relative;
-        z-index: 1;
+        gap: 10px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 8px 15px;
     }
-
-    .page-header h2 i {
-        font-size: 2rem;
-        background: linear-gradient(135deg, #4361ee, #3a56d4);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-        animation: pulse-icon 2s infinite;
+    
+    .search-box i {
+        color: #94a3b8;
     }
-
-    .title-text {
-        background: linear-gradient(135deg, #1e293b, #4361ee);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-        font-size: 1.75rem;
-        font-weight: 800;
+    
+    .search-box input {
+        border: none;
+        outline: none;
+        width: 250px;
+        font-size: 14px;
     }
-
-    .contact-count {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        background: linear-gradient(135deg, #25D366, #128C7E);
-        padding: 0.25rem 0.875rem;
-        border-radius: 2rem;
-        font-size: 0.75rem;
-        font-weight: 700;
-        color: white;
-        margin-left: 0.75rem;
-    }
-
-    .contact-count i {
-        font-size: 0.7rem;
-        color: white;
-    }
-
-    .page-header p {
-        margin: 0;
-        position: relative;
-        z-index: 1;
-        font-size: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-    }
-
-    .description-text {
-        color: #64748b;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .description-text i {
-        color: #4361ee;
-        font-size: 1rem;
-    }
-
-    .info-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        background: rgba(67, 97, 238, 0.1);
-        padding: 0.25rem 0.75rem;
-        border-radius: 2rem;
-        font-size: 0.75rem;
-        color: #4361ee;
-        font-weight: 600;
-    }
-
-    .info-chip i {
-        font-size: 0.7rem;
-        color: #4361ee;
-    }
-
-    /* Animations */
-    @keyframes pulse-icon {
-        0%, 100% {
-            transform: scale(1);
-        }
-        50% {
-            transform: scale(1.05);
-        }
-    }
-
+    
     .table-toolbar {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 1.5rem;
-        gap: 1rem;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 8px;
         flex-wrap: wrap;
     }
-
-    .btn-primary {
-        background: linear-gradient(135deg, #4361ee, #3a56d4);
-        color: white;
-        padding: 0.625rem 1.25rem;
-        border: none;
-        border-radius: 0.5rem;
-        font-size: 0.875rem;
-        font-weight: 600;
-        cursor: pointer;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        transition: all 0.3s ease;
-    }
-
-    .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
-        background: linear-gradient(135deg, #3a56d4, #2c3e9e);
-    }
-
-    .btn-primary-small {
-        background: linear-gradient(135deg, #4361ee, #3a56d4);
-        color: white;
-        padding: 0.5rem 1rem;
-        border: none;
-        border-radius: 0.5rem;
-        font-size: 0.875rem;
-        font-weight: 600;
-        cursor: pointer;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        transition: all 0.3s ease;
-        margin-top: 1rem;
-    }
-
-    .btn-primary-small:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(67, 97, 238, 0.3);
-    }
-
-    .search-box {
-        display: flex;
-        align-items: center;
-        background: white;
-        border: 2px solid #e2e8f0;
-        border-radius: 0.5rem;
-        padding: 0.5rem 1rem;
-        gap: 0.5rem;
-        transition: all 0.3s ease;
-    }
-
-    .search-box:focus-within {
-        border-color: #4361ee;
-        box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
-    }
-
-    .search-box i {
-        color: #94a3b8;
-    }
-
-    .search-box input {
-        border: none;
-        outline: none;
-        font-size: 0.875rem;
-        width: 250px;
-    }
-
-    .card {
-        background: white;
-        border-radius: 1rem;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-        animation: fadeIn 0.3s ease;
-    }
-
-    .table-responsive {
-        overflow-x: auto;
-    }
-
-    .modern-table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    .modern-table thead {
-        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-    }
-
-    .modern-table th {
-        padding: 1rem;
-        text-align: left;
-        font-weight: 600;
-        color: #475569;
-        border-bottom: 2px solid #e2e8f0;
-    }
-
-    .modern-table th i {
-        margin-right: 0.5rem;
-        color: #4361ee;
-    }
-
-    .modern-table td {
-        padding: 1rem;
-        border-bottom: 1px solid #f1f5f9;
-        vertical-align: middle;
-    }
-
-    .modern-table tbody tr {
-        transition: all 0.3s ease;
-    }
-
-    .modern-table tbody tr:hover {
-        background: #f8fafc;
-        transform: scale(1.01);
-    }
-
+    
     .contact-name {
         display: flex;
         align-items: center;
         gap: 0.75rem;
     }
-
+    
     .avatar {
         width: 40px;
         height: 40px;
@@ -294,16 +54,12 @@
         align-items: center;
         justify-content: center;
     }
-
+    
     .avatar i {
         font-size: 1.5rem;
         color: #4361ee;
     }
-
-    .contact-name strong {
-        color: #1e293b;
-    }
-
+    
     .phone-number {
         display: inline-flex;
         align-items: center;
@@ -315,281 +71,205 @@
         font-size: 0.875rem;
         font-weight: 500;
     }
-
+    
     .phone-number i {
         color: #25D366;
         font-size: 1rem;
     }
-
-    /* Tombol Aksi */
-    .action-buttons {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
-
-    .btn-edit {
-        background: linear-gradient(135deg, #f59e0b, #d97706);
-        color: white;
-        padding: 0.375rem 0.875rem;
-        border-radius: 0.375rem;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.375rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        border: none;
-        cursor: pointer;
-    }
-
-    .btn-edit:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
-    }
-
-    .btn-delete {
-        background: linear-gradient(135deg, #ef4444, #dc2626);
-        color: white;
-        padding: 0.375rem 0.875rem;
-        border-radius: 0.375rem;
-        border: none;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.375rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }
-
-    .btn-delete:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
-    }
-
-    .btn-icon {
-        background: #f1f5f9;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.5rem;
-        padding: 0.5rem;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        color: #475569;
-    }
-
-    .btn-icon:hover {
-        background: #4361ee;
-        color: white;
-        transform: translateY(-2px);
-        box-shadow: 0 2px 8px rgba(67, 97, 238, 0.3);
-    }
-
+    
     .empty-state {
         text-align: center;
-        padding: 3rem !important;
+        padding: 50px !important;
+        color: #94a3b8;
     }
-
+    
     .empty-state i {
-        font-size: 4rem;
-        color: #cbd5e1;
-        margin-bottom: 1rem;
+        font-size: 50px;
+        margin-bottom: 15px;
+        display: block;
     }
-
-    .empty-state p {
-        color: #64748b;
-        margin-bottom: 1rem;
-    }
-
-    .table-footer {
-        padding: 1rem;
-        background: #f8fafc;
-        border-top: 1px solid #e2e8f0;
-    }
-
-    .total-count {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        color: #475569;
-        font-size: 0.875rem;
-    }
-
-    .total-count i {
-        color: #4361ee;
-    }
-
-    .total-count strong {
-        color: #1e293b;
-        font-size: 1.125rem;
-    }
-
-    /* Modal Delete */
-    .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(4px);
-        display: none;
-        justify-content: center;
-        align-items: center;
-        z-index: 9999;
-    }
-
-    .modal-box {
-        background: white;
-        padding: 2rem;
-        border-radius: 1rem;
-        width: 400px;
-        max-width: 90%;
+    
+    .loading-state {
         text-align: center;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        padding: 50px !important;
+        color: #64748b;
     }
-
-    .modal-box h3 {
-        margin: 0 0 1rem 0;
-        color: #1e293b;
-        font-size: 1.25rem;
+    
+    .loading-state i {
+        font-size: 30px;
+        animation: spin 1s linear infinite;
     }
-
-    .modal-box p {
-        color: #475569;
-        margin-bottom: 1.5rem;
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
     }
-
-    .modal-box p b {
-        color: #dc2626;
-    }
-
-    .modal-actions {
+    
+    /* Pagination */
+    .pagination-wrapper {
         display: flex;
         justify-content: center;
-        gap: 1rem;
+        align-items: center;
+        gap: 8px;
+        margin-top: 20px;
+        flex-wrap: wrap;
+        padding: 15px;
+        background: #f8fafc;
+        border-radius: 12px;
     }
-
-    .btn-danger {
-        background: linear-gradient(135deg, #ef4444, #dc2626);
-        color: white;
-        padding: 0.625rem 1.5rem;
-        border: none;
-        border-radius: 0.5rem;
+    
+    .page-btn {
+        background: white;
+        border: 1px solid #e2e8f0;
+        padding: 8px 14px;
+        border-radius: 8px;
         cursor: pointer;
-        font-weight: 600;
         transition: all 0.3s ease;
+        color: #1e293b;
+        font-size: 13px;
     }
-
-    .btn-danger:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-    }
-
-    /* Responsive */
-    @media (max-width: 768px) {
-        .table-toolbar {
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-        .search-box input {
-            width: 100%;
-        }
-
-        .modern-table th {
-            display: none;
-        }
-
-        .modern-table td {
-            display: block;
-            text-align: right;
-            padding: 0.75rem;
-            position: relative;
-        }
-
-        .modern-table td::before {
-            content: attr(data-label);
-            position: absolute;
-            left: 0.75rem;
-            font-weight: 600;
-            color: #475569;
-        }
-
-        .contact-name {
-            justify-content: flex-end;
-        }
-
-        .action-buttons {
-            justify-content: flex-end;
-        }
-
-        .header-content {
-            padding: 1rem;
-        }
-
-        .title-text {
-            font-size: 1.25rem;
-        }
-
-        .page-header h2 i {
-            font-size: 1.5rem;
-        }
-    }
-
-    /* Animasi */
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    /* Tooltip untuk copy */
-    .btn-icon {
-        position: relative;
-    }
-
-    .btn-icon:hover::after {
-        content: "Salin nomor";
-        position: absolute;
-        bottom: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #1e293b;
+    
+    .page-btn:hover:not(:disabled) {
+        background: #1e3a5f;
         color: white;
-        padding: 0.25rem 0.5rem;
-        border-radius: 0.25rem;
-        font-size: 0.75rem;
-        white-space: nowrap;
-        margin-bottom: 0.5rem;
+        border-color: #1e3a5f;
+    }
+    
+    .page-btn.active {
+        background: #1e3a5f;
+        color: white;
+        border-color: #1e3a5f;
+    }
+    
+    .page-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .page-dots {
+        padding: 0 4px;
+        color: #64748b;
+    }
+    
+    .page-info {
+        margin-left: 12px;
+        padding: 6px 12px;
+        background: #e2e8f0;
+        border-radius: 8px;
+        font-size: 12px;
+        color: #475569;
+    }
+    
+    /* Modal Form */
+    .modal-box form {
+        text-align: left;
+    }
+    
+    .modal-box input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 14px;
+        margin-bottom: 15px;
+        font-family: inherit;
+    }
+    
+    .modal-box input:focus {
+        outline: none;
+        border-color: #4361ee;
+        box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+    }
+    
+    .modal-buttons {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
+    }
+    
+    .modal-buttons button {
+        flex: 1;
+        padding: 10px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+    }
+    
+    .btn-secondary {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .btn-secondary:hover {
+        background: #e2e8f0;
+    }
+    
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+
+    /* Header content */
+    .header-content {
+        background: white;
+        border-radius: 16px;
+        padding: 20px 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e2e8f0;
+    }
+    
+    .header-content h2 {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 0 0 8px 0;
+        font-size: 24px;
+        font-weight: 700;
+        color: #1e293b;
+    }
+    
+    .header-content h2 i {
+        color: #1e3a5f;
+        font-size: 28px;
+    }
+    
+    .contact-count {
+        background: linear-gradient(135deg, #25D366, #128C7E);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 14px;
+        margin-left: 10px;
+    }
+    
+    .header-content p {
+        color: #64748b;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
 </style>
 
-<!-- ========================= -->
-<!-- HEADER YANG DIPERBAGUS -->
-<!-- ========================= -->
 <div class="page-header">
     <div class="header-content">
         <h2>
             <i class="fas fa-address-book"></i>
-            <span class="title-text">Daftar Contact</span>
-            <span class="contact-count">
-                <i class="fab fa-whatsapp"></i> {{ contacts|length }} Contact
-            </span>
+            Daftar Contact
+            <span class="contact-count" id="contactCount">0 Contact</span>
         </h2>
-
         <p>
-            <span class="description-text">
-                <i class="fas fa-info-circle"></i>
-                Kelola semua contact WhatsApp untuk notifikasi
-            </span>
-            <span class="info-chip">
+            <i class="fas fa-info-circle"></i>
+            Kelola semua contact WhatsApp untuk notifikasi
+            <span class="info-chip" style="margin-left: 10px;">
                 <i class="fas fa-bell"></i> Notifikasi Aktif
             </span>
         </p>
@@ -597,25 +277,19 @@
 </div>
 
 <div class="table-toolbar">
-    <a href="/contacts/add/" class="btn-primary">
-        <i class="fas fa-plus"></i> 
-        Tambah Contact
-    </a>
+    <button class="btn-primary" onclick="openContactModal()">
+        <i class="fas fa-plus"></i> Tambah Contact
+    </button>
+    
     <div class="search-box">
         <i class="fas fa-search"></i>
-        <input 
-            type="text" 
-            id="searchContact" 
-            placeholder="Cari berdasarkan nama..." 
-            onkeyup="searchTable()"
-            autocomplete="off"
-        >
+        <input type="text" id="searchInput" placeholder="Cari contact..." onkeyup="searchContacts()">
     </div>
 </div>
 
 <div class="card">
     <div class="table-responsive">
-        <table class="modern-table" id="contactTable">
+        <table class="modern-table">
             <thead>
                 <tr>
                     <th><i class="fas fa-user"></i> Nama</th>
@@ -623,80 +297,37 @@
                     <th><i class="fas fa-cog"></i> Aksi</th>
                 </tr>
             </thead>
-            <tbody>
-                {% for c in contacts %}
+            <tbody id="contactTableBody">
                 <tr>
-                    <td data-label="Nama">
-                        <div class="contact-name">
-                            <div class="avatar">
-                                <i class="fas fa-user-circle"></i>
-                            </div>
-                            <strong>{{ c.name }}</strong>
-                        </div>
-                    </td>
-                    <td data-label="WhatsApp">
-                        <span class="phone-number">
-                            <i class="fab fa-whatsapp"></i> 
-                            {{ c.phone_number }}
-                        </span>
-                    </td>
-                    <td data-label="Aksi">
-                        <div class="action-buttons">
-                            <!-- Tombol Edit -->
-                            <a href="/contacts/edit/{{ c.id }}/" class="btn-edit">
-                                <i class="fas fa-edit"></i> Edit
-                            </a>
-                            
-                            <!-- Tombol Delete -->
-                            <button class="btn-delete delete-btn" 
-                                    data-id="{{ c.id }}" 
-                                    data-name="{{ c.name|escapejs }}">
-                                <i class="fas fa-trash"></i> Hapus
-                            </button>
-                            
-                            <!-- Tombol Copy -->
-                            <button class="btn-icon" onclick="copyToClipboard('{{ c.phone_number }}')" title="Salin nomor WhatsApp">
-                                <i class="fas fa-copy"></i>
-                            </button>
-                        </div>
+                    <td colspan="3" class="loading-state">
+                        <i class="fas fa-spinner fa-spin"></i> Loading...
                     </td>
                 </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="3" class="empty-state">
-                        <i class="fas fa-inbox"></i>
-                        <p>Belum ada data contact</p>
-                        <a href="/contacts/add/" class="btn-primary-small">
-                            <i class="fas fa-plus"></i> 
-                            Tambah Contact Sekarang
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
             </tbody>
         </table>
     </div>
-    
-    <div class="table-footer">
-        <div class="total-count">
-            <i class="fas fa-users"></i> 
-            Total Contact: <strong>{{ contacts|length }}</strong>
-        </div>
-    </div>
+    <div id="pagination"></div>
 </div>
 
-<!-- Modal Delete -->
-<div id="deleteModal" class="modal-overlay">
+<!-- MODAL CREATE/EDIT CONTACT (POPUP) -->
+<div id="contactModal" class="modal-overlay">
     <div class="modal-box">
-        <h3>Konfirmasi Hapus</h3>
-        <p id="deleteText">Yakin mau hapus contact ini?</p>
-        <form id="deleteForm" method="post">
-            {% csrf_token %}
-            <div class="modal-actions">
-                <button type="submit" class="btn-danger">
-                    <i class="fas fa-check"></i> Ya, Hapus
+        <h3 id="modalTitle">
+            <i class="fas fa-plus-circle"></i> Tambah Contact
+        </h3>
+        
+        <form id="contactForm" onsubmit="return false;">
+            <input type="hidden" id="contactId">
+            
+            <input type="text" id="name" placeholder="Nama Lengkap" required>
+            
+            <input type="text" id="phone" placeholder="Nomor WhatsApp (contoh: 6281234567890)" required>
+            
+            <div class="modal-buttons">
+                <button type="button" class="btn-primary" onclick="saveContact()">
+                    <i class="fas fa-save"></i> Simpan
                 </button>
-                <button type="button" onclick="closeModal()" class="btn-secondary">
+                <button type="button" class="btn-secondary" onclick="closeContactModal()">
                     <i class="fas fa-times"></i> Batal
                 </button>
             </div>
@@ -704,143 +335,499 @@
     </div>
 </div>
 
+<!-- MODAL DELETE CONFIRMATION -->
+<div id="deleteModal" class="modal-overlay">
+    <div class="modal-box">
+        <h3>
+            <i class="fas fa-trash-alt"></i> Konfirmasi Hapus
+        </h3>
+        <p id="deleteText">Yakin ingin menghapus contact ini?</p>
+        <div class="modal-buttons">
+            <button type="button" class="btn-danger" id="btnConfirmDelete">
+                <i class="fas fa-check"></i> Ya, Hapus
+            </button>
+            <button type="button" class="btn-secondary" onclick="closeDeleteModal()">
+                <i class="fas fa-times"></i> Batal
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
-function searchTable() {
-    const input = document.getElementById('searchContact');
-    const filter = input.value.toLowerCase();
-    const table = document.getElementById('contactTable');
-    const tr = table.getElementsByTagName('tr');
+    // ===============================
+    // STATE
+    // ===============================
+    let currentEditId = null;
+    let currentDeleteId = null;
+    let currentPage = 1;
+    let itemsPerPage = 10;
+    let totalItems = 0;
+    let allContacts = [];
     
-    for (let i = 1; i < tr.length; i++) {
-        const tdName = tr[i].getElementsByTagName('td')[0];
-        if (tdName) {
-            const textValue = tdName.textContent || tdName.innerText;
-            if (textValue.toLowerCase().indexOf(filter) > -1) {
-                tr[i].style.display = '';
-                tr[i].style.animation = 'none';
-                setTimeout(() => {
-                    tr[i].style.animation = 'fadeIn 0.3s ease';
-                }, 10);
-            } else {
-                tr[i].style.display = 'none';
+    // ===============================
+    // CSRF TOKEN HELPER
+    // ===============================
+    function getCSRFToken() {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.startsWith('csrftoken=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(10));
+                    break;
+                }
             }
         }
+        return cookieValue;
     }
-}
-
-function copyToClipboard(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(function() {
-            showNotification('Nomor WhatsApp berhasil disalin: ' + text, 'success');
-        }).catch(function() {
-            fallbackCopy(text);
-        });
-    } else {
-        fallbackCopy(text);
-    }
-}
-
-function fallbackCopy(text) {
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand('copy');
-    document.body.removeChild(textarea);
-    showNotification('Nomor WhatsApp berhasil disalin: ' + text, 'success');
-}
-
-function showNotification(message, type) {
-    const notification = document.createElement('div');
-    notification.innerHTML = `
-        <div style="
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: ${type === 'success' ? '#10b981' : '#ef4444'};
-            color: white;
-            padding: 1rem 1.5rem;
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 9999;
-            animation: slideIn 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        ">
-            <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
-            <span>${message}</span>
-        </div>
-    `;
     
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => {
-            notification.remove();
-        }, 300);
-    }, 3000);
-}
-
-// Delete modal functionality
-document.querySelectorAll('.delete-btn').forEach(button => {
-    button.addEventListener('click', function() {
-        const id = this.dataset.id;
-        const name = this.dataset.name;
-        const modal = document.getElementById('deleteModal');
-        const deleteForm = document.getElementById('deleteForm');
-        const deleteText = document.getElementById('deleteText');
+    // ===============================
+    // LOAD CONTACTS FROM API
+    // ===============================
+    async function loadContacts(page = 1, search = '') {
+        const tbody = document.getElementById('contactTableBody');
+        currentPage = page;
         
-        modal.style.display = 'flex';
-        deleteForm.action = `/contacts/delete/${id}/`;
-        deleteText.innerHTML = `Yakin mau hapus contact <b>${name}</b>?`;
-    });
-});
-
-function closeModal() {
-    document.getElementById('deleteModal').style.display = 'none';
-}
-
-window.onclick = function(e) {
-    const modal = document.getElementById('deleteModal');
-    if (e.target === modal) {
-        closeModal();
-    }
-}
-
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeModal();
-    }
-});
-
-// Animasi CSS untuk notifikasi
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="3" class="loading-state">
+                    <i class="fas fa-spinner fa-spin"></i> Memuat data...
+                </td>
+            </tr>
+        `;
+        
+        try {
+            const response = await fetch('/api/contacts/', {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (response.status === 401 || response.status === 403) {
+                window.location.href = '/login/';
+                return;
+            }
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                console.error('Error:', data.error);
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="3" class="empty-state">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            ${data.error}
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            allContacts = data;
+            totalItems = data.length;
+            
+            // Update counter
+            const countSpan = document.getElementById('contactCount');
+            if (countSpan) countSpan.innerHTML = totalItems + ' Contact';
+            
+            renderContactsTable(data, page, search);
+            renderPagination();
+            
+        } catch (error) {
+            console.error('Error:', error);
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="3" class="empty-state">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Gagal memuat data. Pastikan Anda sudah login.
+                        <br>
+                        <button class="btn-primary" onclick="location.reload()" style="margin-top: 10px;">
+                            <i class="fas fa-sync-alt"></i> Muat Ulang
+                        </button>
+                    </td>
+                </tr>
+            `;
         }
     }
     
-    @keyframes slideOut {
-        from {
-            transform: translateX(0);
-            opacity: 1;
+    // ===============================
+    // RENDER CONTACTS TABLE
+    // ===============================
+    function renderContactsTable(data, page, search) {
+        const tbody = document.getElementById('contactTableBody');
+        
+        // Filter by search
+        let filteredData = data;
+        if (search) {
+            filteredData = data.filter(item => 
+                item.name.toLowerCase().includes(search.toLowerCase())
+            );
+            totalItems = filteredData.length;
         }
-        to {
-            transform: translateX(100%);
-            opacity: 0;
+        
+        // Pagination
+        const start = (page - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        const pageData = filteredData.slice(start, end);
+        
+        if (!pageData.length) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="3" class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>Belum ada data contact</p>
+                        <button class="btn-primary" onclick="openContactModal()" style="margin-top: 10px;">
+                            <i class="fas fa-plus"></i> Tambah Contact Sekarang
+                        </button>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = pageData.map(c => `
+            <tr>
+                <td data-label="Nama">
+                    <div class="contact-name">
+                        <div class="avatar">
+                            <i class="fas fa-user-circle"></i>
+                        </div>
+                        <strong>${escapeHtml(c.name)}</strong>
+                    </div>
+                </td>
+                <td data-label="WhatsApp">
+                    <span class="phone-number">
+                        <i class="fab fa-whatsapp"></i> ${escapeHtml(c.phone)}
+                    </span>
+                </td>
+                <td data-label="Aksi">
+                    <div class="action-buttons">
+                        <button class="btn-edit" onclick="openEditContact(${c.id}, '${escapeHtml(c.name)}', '${escapeHtml(c.phone)}')">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn-delete" onclick="openDeleteContact(${c.id}, '${escapeHtml(c.name)}')">
+                            <i class="fas fa-trash"></i> Hapus
+                        </button>
+                        <button class="btn-icon" onclick="copyToClipboard('${escapeHtml(c.phone)}')" title="Salin nomor WhatsApp">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+    
+    // ===============================
+    // PAGINATION
+    // ===============================
+    function renderPagination() {
+        const container = document.getElementById('pagination');
+        if (!container) return;
+        
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        
+        if (totalPages <= 1) {
+            container.innerHTML = '';
+            return;
+        }
+        
+        let html = '<div class="pagination-wrapper">';
+        
+        html += `
+            <button class="page-btn" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        `;
+        
+        const startPage = Math.max(1, currentPage - 2);
+        const endPage = Math.min(totalPages, currentPage + 2);
+        
+        if (startPage > 1) {
+            html += `<button class="page-btn" onclick="changePage(1)">1</button>`;
+            if (startPage > 2) html += `<span class="page-dots">...</span>`;
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            html += `
+                <button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">
+                    ${i}
+                </button>
+            `;
+        }
+        
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) html += `<span class="page-dots">...</span>`;
+            html += `<button class="page-btn" onclick="changePage(${totalPages})">${totalPages}</button>`;
+        }
+        
+        html += `
+            <button class="page-btn" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        `;
+        
+        html += `<span class="page-info">Total: ${totalItems} data</span>`;
+        html += '</div>';
+        
+        container.innerHTML = html;
+    }
+    
+    function changePage(page) {
+        if (page < 1 || page > Math.ceil(totalItems / itemsPerPage)) return;
+        currentPage = page;
+        const searchValue = document.getElementById('searchInput').value;
+        renderContactsTable(allContacts, page, searchValue);
+        renderPagination();
+    }
+    
+    function searchContacts() {
+        currentPage = 1;
+        const searchValue = document.getElementById('searchInput').value;
+        renderContactsTable(allContacts, 1, searchValue);
+        renderPagination();
+    }
+    
+    // ===============================
+    // MODAL CONTACT (CREATE/EDIT)
+    // ===============================
+    function openContactModal() {
+        currentEditId = null;
+        document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus-circle"></i> Tambah Contact';
+        document.getElementById('contactId').value = '';
+        document.getElementById('name').value = '';
+        document.getElementById('phone').value = '';
+        document.getElementById('contactModal').style.display = 'flex';
+    }
+    
+    function openEditContact(id, name, phone) {
+        currentEditId = id;
+        document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit"></i> Edit Contact';
+        document.getElementById('contactId').value = id;
+        document.getElementById('name').value = name;
+        document.getElementById('phone').value = phone;
+        document.getElementById('contactModal').style.display = 'flex';
+    }
+    
+    function closeContactModal() {
+        document.getElementById('contactModal').style.display = 'none';
+        document.getElementById('contactForm').reset();
+        currentEditId = null;
+    }
+    
+    async function saveContact() {
+        const id = document.getElementById('contactId').value;
+        const name = document.getElementById('name').value.trim();
+        const phone = document.getElementById('phone').value.trim();
+        
+        if (!name || !phone) {
+            showNotification('Nama dan nomor WhatsApp wajib diisi!', 'error');
+            return;
+        }
+        
+        const method = id ? 'PUT' : 'POST';
+        const apiUrl = id ? `/api/contacts/${id}/` : '/api/contacts/';
+        
+        try {
+            const response = await fetch(apiUrl, {
+                method: method,
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({ name, phone })
+            });
+            
+            if (response.status === 403) {
+                showNotification('CSRF token error. Silakan refresh halaman.', 'error');
+                return;
+            }
+            
+            if (!response.ok) throw new Error('Gagal menyimpan');
+            
+            const result = await response.json();
+            showNotification(result.message || (id ? 'Contact berhasil diupdate' : 'Contact berhasil ditambahkan'), 'success');
+            closeContactModal();
+            loadContacts();
+            
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Gagal menyimpan data', 'error');
         }
     }
-`;
-document.head.appendChild(style);
+    
+    // ===============================
+    // DELETE CONTACT
+    // ===============================
+    function openDeleteContact(id, name) {
+        currentDeleteId = id;
+        document.getElementById('deleteText').innerHTML = `Yakin ingin menghapus contact <b>${escapeHtml(name)}</b>?`;
+        document.getElementById('deleteModal').style.display = 'flex';
+    }
+    
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').style.display = 'none';
+        currentDeleteId = null;
+    }
+    
+    async function confirmDelete() {
+        if (!currentDeleteId) return;
+        
+        try {
+            const response = await fetch(`/api/contacts/${currentDeleteId}/`, {
+                method: 'DELETE',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCSRFToken()
+                }
+            });
+            
+            if (response.status === 403) {
+                showNotification('CSRF token error. Silakan refresh halaman.', 'error');
+                return;
+            }
+            
+            if (!response.ok) throw new Error('Gagal menghapus');
+            
+            const result = await response.json();
+            showNotification(result.message || 'Contact berhasil dihapus', 'success');
+            closeDeleteModal();
+            loadContacts();
+            
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Gagal menghapus data', 'error');
+        }
+    }
+    
+    // ===============================
+    // COPY TO CLIPBOARD
+    // ===============================
+    async function copyToClipboard(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+            showNotification('Nomor WhatsApp berhasil disalin: ' + text, 'success');
+        } catch (err) {
+            fallbackCopy(text);
+        }
+    }
+    
+    function fallbackCopy(text) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showNotification('Nomor WhatsApp berhasil disalin: ' + text, 'success');
+    }
+    
+    // ===============================
+    // NOTIFICATION
+    // ===============================
+    let notificationTimeout = null;
+    
+    function showNotification(message, type = 'success') {
+        const oldNotif = document.querySelector('.custom-notification');
+        if (oldNotif) oldNotif.remove();
+        if (notificationTimeout) clearTimeout(notificationTimeout);
+        
+        const notification = document.createElement('div');
+        notification.className = 'custom-notification';
+        const bgColor = type === 'success' ? '#10b981' : '#ef4444';
+        const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+        
+        notification.innerHTML = `
+            <div style="
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${bgColor};
+                color: white;
+                padding: 12px 20px;
+                border-radius: 10px;
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                animation: slideInRight 0.3s ease;
+            ">
+                <i class="fas ${icon}"></i>
+                <span>${escapeHtml(message)}</span>
+            </div>
+        `;
+        
+        if (!document.querySelector('#notification-style')) {
+            const style = document.createElement('style');
+            style.id = 'notification-style';
+            style.textContent = `
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOutRight {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        document.body.appendChild(notification);
+        
+        notificationTimeout = setTimeout(() => {
+            const notif = document.querySelector('.custom-notification');
+            if (notif) {
+                notif.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => notif.remove(), 300);
+            }
+        }, 3000);
+    }
+    
+    // ===============================
+    // UTILITIES
+    // ===============================
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // ===============================
+    // INITIALIZE
+    // ===============================
+    document.addEventListener('DOMContentLoaded', () => {
+        loadContacts();
+        
+        window.onclick = function(e) {
+            const contactModal = document.getElementById('contactModal');
+            const deleteModal = document.getElementById('deleteModal');
+            if (e.target === contactModal) closeContactModal();
+            if (e.target === deleteModal) closeDeleteModal();
+        };
+        
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeContactModal();
+                closeDeleteModal();
+            }
+        });
+        
+        const confirmBtn = document.getElementById('btnConfirmDelete');
+        if (confirmBtn) {
+            const newBtn = confirmBtn.cloneNode(true);
+            confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
+            newBtn.onclick = confirmDelete;
+        }
+    });
 </script>
 
 {% endblock %}

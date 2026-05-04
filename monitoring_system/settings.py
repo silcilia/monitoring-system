@@ -2,12 +2,17 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'ganti-di-production-ya'
+SECRET_KEY = 'jusavocad123'
 
-DEBUG = True  # nanti ubah False saat deploy
+DEBUG = True  
 
 ALLOWED_HOSTS = []
 
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_AGE = 86400 
+SESSION_SAVE_EVERY_REQUEST = True 
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
 
 # ======================
 # APPS

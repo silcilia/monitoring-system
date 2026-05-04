@@ -64,4 +64,6 @@ urlpatterns = [
     # =====================================================
     path('api/power-data/', csrf_exempt(PowerDataAPI.as_view()), name='api_power_data'),
     path('api/power-add/', csrf_exempt(PowerCreateAPI.as_view()), name='api_power_add'),
+    path('api/check-auth/', CheckAuthAPI.as_view(), name='check_auth'),
+    path('api/debug-session/', DebugSessionAPI.as_view(), name='debug_session'),
 ]
