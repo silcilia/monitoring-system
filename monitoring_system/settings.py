@@ -2,7 +2,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'jusavocad123'
+SECRET_KEY = 'jusavocad'
 
 DEBUG = True  
 

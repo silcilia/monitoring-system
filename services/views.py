@@ -6,8 +6,7 @@ from django.utils import timezone
 from datetime import timedelta
 from collections import defaultdict
 from django.http import JsonResponse
-
-from .models import Service, Contact, PowerLog, Log
+from .models import Service, Contact, PowerLog, Log, Device, ServiceContact, DeviceContact
 
 # ======================
 # AUTH DJANGO
@@ -343,51 +342,91 @@ class PowerView(TemplateView):
 # ======================
 # POWER API
 # ======================
-class PowerDataAPI(View):
-    @method_decorator(csrf_exempt)
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
 
+@method_decorator(csrf_exempt, name='dispatch')
+class PowerDataAPI(View):
     def get(self, request):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Unauthorized"}, status=401)
-        
-        logs = PowerLog.objects.order_by('-timestamp')[:10]
-        
-        data = {
-            "labels": [log.timestamp.strftime("%H:%M:%S") for log in logs][::-1],
-            "voltage": [log.voltage for log in logs][::-1],
-            "current": [log.current for log in logs][::-1],
-            "power": [log.power for log in logs][::-1],
-        }
-        return JsonResponse(data)
 
+        logs = PowerLog.objects.all().order_by('-timestamp')[:10]
+
+        logs_list = list(reversed(logs))
+        
+        labels = []
+        voltages = []
+        currents = []
+        powers = []
+        
+        for log in logs_list:
+            labels.append(log.timestamp.strftime("%H:%M:%S"))
+            voltages.append(log.voltage)
+            currents.append(log.current)
+            powers.append(log.power)
+        
+        # Debug print (tanpa error)
+        print(f"=== PowerDataAPI ===")
+        print(f"Total data: {len(logs_list)}")
+        if len(labels) > 0:
+            print(f"Latest voltage: {voltages[-1]}V")
+        print(f"==================")
+        
+        return JsonResponse({
+            "labels": labels,
+            "voltage": voltages,
+            "current": currents,
+            "power": powers,
+        })
 
 # ======================
 # IoT API (API KEY)
 # ======================
+@method_decorator(csrf_exempt, name='dispatch')
 class PowerCreateAPI(View):
-    @method_decorator(csrf_exempt)
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
     def post(self, request):
         api_key = request.headers.get('X-API-KEY')
-
-        if api_key != 'SECRET123':
+        if api_key != 'jusavocad':
             return JsonResponse({'error': 'Unauthorized'}, status=403)
 
         try:
             data = json.loads(request.body)
-            PowerLog.objects.create(
-                voltage=data.get("voltage"),
-                current=data.get("current"),
-                power=data.get("power")
+            device_id = data.get('device_id')
+            
+            if device_id:
+                # Cek apakah device dengan ID tersebut ada
+                try:
+                    device = Device.objects.get(id=device_id)
+                except Device.DoesNotExist:
+                    return JsonResponse({'error': f'Device with id {device_id} not found'}, status=400)
+            else:
+                device = Device.objects.first()
+                if not device:
+                    return JsonResponse({'error': 'No device available. Please create a device first.'}, status=400)
+            
+            power_log = PowerLog.objects.create(
+                device=device,
+                voltage=data.get('voltage'),
+                current=data.get('current'),
+                power=data.get('power')
             )
-            return JsonResponse({"message": "Data power masuk"})
+            
+            return JsonResponse({
+                "message": "Data power berhasil disimpan",
+                "id": power_log.id,
+                "device_id": device.id,
+                "device_name": device.name,
+                "voltage": power_log.voltage,
+                "current": power_log.current,
+                "power": power_log.power,
+                "timestamp": power_log.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            }, status=201)
+            
+        except KeyError as e:
+            return JsonResponse({"error": f"Missing field: {str(e)}"}, status=400)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON format"}, status=400)
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
-
 
 # ======================
 # AUTH API
@@ -411,13 +450,9 @@ class LoginAPI(View):
         user = authenticate(request, username=username, password=password)
 
         if user:
-            # 🔥 LOGIN USER
             login(request, user)
             
-            # 🔥 FORCE SAVE SESSION
             request.session.save()
-            
-            # 🔥 PRINT UNTUK DEBUG
             print(f"Login berhasil: {username}")
             print(f"Session key: {request.session.session_key}")
             
@@ -427,7 +462,7 @@ class LoginAPI(View):
                 "username": user.username
             })
 
-        print(f"❌ Login gagal: {username}")
+        print(f"Login gagal: {username}")
         return JsonResponse({"success": False, "error": "Username atau password salah"}, status=401)
 
 
