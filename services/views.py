@@ -518,3 +518,17 @@ class DebugSessionAPI(View):
             "cookies": request.COOKIES.get('sessionid', None)
         })
 
+# ======================
+# DASHBOARD API
+# ======================
+class DashboardAPI(View):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+        
+        data = get_dashboard_data()
+        return JsonResponse(data)

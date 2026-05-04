@@ -26,7 +26,7 @@
     }
 
     .power-header h2 i {
-        color: #4361ee;
+        color: #1e3a5f;
         font-size: 1.3rem;
     }
 
@@ -74,7 +74,7 @@
 
     .stat-icon i {
         font-size: 1.5rem;
-        color: #4361ee;
+        color: #1e3a5f;
     }
 
     .stat-info {
@@ -161,7 +161,7 @@
 
     .chart-title i {
         font-size: 1.2rem;
-        color: #4361ee;
+        color: #1e3a5f;
     }
 
     .chart-title h3 {
@@ -205,7 +205,7 @@
     }
 
     .note-item i {
-        color: #4361ee;
+        color: #1e3a5f;
         font-size: 0.6rem;
     }
 
@@ -314,19 +314,30 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-let chart;
-let interval;
+let chart = null;
+let refreshInterval = null;
 
-/**
- * 🔐 AMBIL TOKEN DARI LOCALSTORAGE
- */
-function getToken() {
-    return localStorage.getItem('access');
+// ===============================
+// CSRF TOKEN HELPER
+// ===============================
+function getCSRFToken() {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.startsWith('csrftoken=')) {
+                cookieValue = decodeURIComponent(cookie.substring(10));
+                break;
+            }
+        }
+    }
+    return cookieValue;
 }
 
-/**
- * Update voltage status - warna hitam/putih
- */
+// ===============================
+// UPDATE VOLTAGE STATUS
+// ===============================
 function updateVoltageStatus(voltage) {
     const statusElement = document.getElementById('voltageStatus');
     if (!statusElement) return;
@@ -349,64 +360,72 @@ function updateVoltageStatus(voltage) {
     statusElement.className = 'stat-label ' + statusClass;
 }
 
-/**
- * 🔥 FETCH DENGAN TOKEN
- */
-function fetchPowerData() {
-    const token = getToken();
+// ===============================
+// FETCH POWER DATA (SESSION AUTH)
+// ===============================
+async function fetchPowerData() {
+    try {
+        const response = await fetch('/api/power-data/', {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCSRFToken()
+            }
+        });
 
-    if (!token) {
-        console.warn("Belum login!");
-        return;
-    }
-
-    fetch('/api/power-data/', {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
+        if (response.status === 401) {
+            console.warn("Unauthorized, redirecting to login...");
+            window.location.href = '/login/';
+            return;
         }
-    })
-    .then(res => {
-        if (res.status === 401) {
-            console.error("Session habis");
-            localStorage.clear();
-            window.location.href = "/login/";
-            throw new Error("Unauthorized");
-        }
-        return res.json();
-    })
-    .then(data => {
-        console.log("DATA:", data);
 
-        // update chart
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log("Power Data received:", data);
+
+        // Update chart
         if (chart && data.labels && data.voltage) {
             chart.data.labels = data.labels;
             chart.data.datasets[0].data = data.voltage;
-            chart.update();
+            chart.update('active');
         }
 
+        // Update stats
         if (data.voltage && data.voltage.length > 0) {
             const current = data.voltage[data.voltage.length - 1];
             document.getElementById('currentVoltage').innerText = current.toFixed(1);
-            
-            // Update voltage status
             updateVoltageStatus(current);
 
-            const avg = data.voltage.reduce((a, b) => a + b, 0) / data.voltage.length;
-            document.getElementById('avgVoltage').innerText = avg.toFixed(1);
+            const sum = data.voltage.reduce((a, b) => a + b, 0);
+            const avg = (sum / data.voltage.length).toFixed(1);
+            document.getElementById('avgVoltage').innerText = avg;
         }
-    })
-    .catch(err => {
-        console.error("ERROR:", err);
-    });
+        
+    } catch (error) {
+        console.error("Error fetching power data:", error);
+        document.getElementById('currentVoltage').innerText = 'Error';
+        document.getElementById('avgVoltage').innerText = '--';
+    }
 }
 
-/**
- * 📊 INIT CHART - WARNA HITAM PUTIH KONTRAST
- */
+// ===============================
+// INIT CHART
+// ===============================
 function initChart() {
-    const ctx = document.getElementById('voltageChart').getContext('2d');
+    const canvas = document.getElementById('voltageChart');
+    
+    // Hancurkan chart lama jika ada
+    if (chart) {
+        chart.destroy();
+        chart = null;
+    }
+    
+    const ctx = canvas.getContext('2d');
 
     chart = new Chart(ctx, {
         type: 'line',
@@ -415,12 +434,12 @@ function initChart() {
             datasets: [{
                 label: 'Voltage (Volt)',
                 data: [],
-                borderColor: '#4361ee',
-                backgroundColor: 'rgba(67, 97, 238, 0.05)',
+                borderColor: '#1e3a5f',
+                backgroundColor: 'rgba(30, 58, 95, 0.05)',
                 borderWidth: 2.5,
                 tension: 0.3,
                 fill: true,
-                pointBackgroundColor: '#4361ee',
+                pointBackgroundColor: '#1e3a5f',
                 pointBorderColor: '#ffffff',
                 pointBorderWidth: 2,
                 pointRadius: 4,
@@ -451,7 +470,7 @@ function initChart() {
                     backgroundColor: '#1e293b',
                     titleColor: '#ffffff',
                     bodyColor: '#cbd5e1',
-                    borderColor: '#4361ee',
+                    borderColor: '#1e3a5f',
                     borderWidth: 1,
                     callbacks: {
                         label: function(context) {
@@ -523,22 +542,49 @@ function initChart() {
     });
 }
 
-/**
- * 🚀 START
- */
+// ===============================
+// REFRESH CHART
+// ===============================
+function refreshChart() {
+    const btn = document.querySelector('.chart-btn');
+    if (btn) {
+        btn.style.transform = 'rotate(360deg)';
+        btn.disabled = true;
+        setTimeout(() => {
+            btn.style.transform = 'rotate(0deg)';
+            btn.disabled = false;
+        }, 500);
+    }
+    fetchPowerData();
+}
+
+// ===============================
+// START
+// ===============================
 document.addEventListener('DOMContentLoaded', () => {
+    // Inisialisasi chart
     initChart();
     
+    // Load data pertama kali
     setTimeout(() => {
         fetchPowerData();
     }, 100);
     
-    interval = setInterval(fetchPowerData, 5000);
+    // Auto refresh setiap 5 detik
+    if (refreshInterval) clearInterval(refreshInterval);
+    refreshInterval = setInterval(fetchPowerData, 5000);
 });
 
 // Cleanup interval on page unload
 window.addEventListener('beforeunload', () => {
-    if (interval) clearInterval(interval);
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+    }
+    if (chart) {
+        chart.destroy();
+        chart = null;
+    }
 });
 </script>
 
