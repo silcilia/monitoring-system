@@ -35,6 +35,119 @@
         font-size: 0.8rem;
     }
 
+    /* Device Status Card */
+    .device-status-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 30px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .device-status-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 15px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .device-status-header i {
+        font-size: 1.5rem;
+        color: #1e3a5f;
+    }
+
+    .device-status-header h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .device-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+    }
+
+    .device-item {
+        background: white;
+        border-radius: 12px;
+        padding: 15px;
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s ease;
+    }
+
+    .device-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .device-name {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+
+    .device-name i {
+        font-size: 1.2rem;
+        color: #1e3a5f;
+    }
+
+    .device-name h4 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .device-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-bottom: 12px;
+    }
+
+    .device-status.online {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .device-status.offline {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .device-status.degraded {
+        background: #fed7aa;
+        color: #92400e;
+    }
+
+    .device-info {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .device-info p {
+        margin: 4px 0;
+    }
+
+    .device-info i {
+        width: 16px;
+        margin-right: 6px;
+        color: #1e3a5f;
+    }
+
     /* Stats Cards - SEJAJAR KE SAMPING */
     .stats-wrapper {
         display: flex;
@@ -261,6 +374,21 @@
         padding: 30px;
     }
 
+    /* Refresh button */
+    .refresh-device-btn {
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 0.7rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .refresh-device-btn:hover {
+        background: #e2e8f0;
+    }
+
     @media (max-width: 768px) {
         .power-container {
             padding: 15px;
@@ -297,6 +425,10 @@
             padding: 6px 8px;
             font-size: 0.7rem;
         }
+
+        .device-grid {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 
@@ -308,6 +440,24 @@
             Power Monitoring
         </h2>
         <p>Real-time voltage monitoring system</p>
+    </div>
+
+    <!-- Device Status Card -->
+    <div class="device-status-card">
+        <div class="device-status-header">
+            <i class="fas fa-microchip"></i>
+            <h3>Status Perangkat (ESP32)</h3>
+            <button class="refresh-device-btn" onclick="loadDevices()" style="margin-left: auto;">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+        <div class="device-grid" id="deviceGrid">
+            <div class="device-item">
+                <div class="loading-state">
+                    <i class="fas fa-spinner fa-spin"></i> Loading devices...
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Stats Cards - SEJAJAR KE SAMPING -->
@@ -400,6 +550,7 @@
 <script>
 let chart = null;
 let refreshInterval = null;
+let deviceRefreshInterval = null;
 
 // ===============================
 // CSRF TOKEN HELPER
@@ -417,6 +568,121 @@ function getCSRFToken() {
         }
     }
     return cookieValue;
+}
+
+// ===============================
+// LOAD DEVICES (ESP32 STATUS)
+// ===============================
+async function loadDevices() {
+    try {
+        const response = await fetch('/api/devices/', {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCSRFToken()
+            }
+        });
+
+        if (response.status === 401) {
+            window.location.href = '/login/';
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const devices = await response.json();
+        renderDevices(devices);
+
+    } catch (error) {
+        console.error("Error loading devices:", error);
+        const deviceGrid = document.getElementById('deviceGrid');
+        if (deviceGrid) {
+            deviceGrid.innerHTML = `
+                <div class="device-item">
+                    <div class="device-name">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h4>Error</h4>
+                    </div>
+                    <div class="device-info">
+                        <p>Gagal memuat data perangkat: ${error.message}</p>
+                    </div>
+                </div>
+            `;
+        }
+    }
+}
+
+// ===============================
+// RENDER DEVICES
+// ===============================
+function renderDevices(devices) {
+    const deviceGrid = document.getElementById('deviceGrid');
+    if (!deviceGrid) return;
+
+    if (!devices || devices.length === 0) {
+        deviceGrid.innerHTML = `
+            <div class="device-item">
+                <div class="device-name">
+                    <i class="fas fa-microchip"></i>
+                    <h4>Tidak ada perangkat</h4>
+                </div>
+                <div class="device-info">
+                    <p>Belum ada device ESP32 yang terdaftar</p>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    deviceGrid.innerHTML = devices.map(device => {
+        let statusClass = 'offline';
+        let statusIcon = '<i class="fas fa-circle"></i>';
+        let statusText = 'OFFLINE';
+        
+        if (device.status === 'ONLINE') {
+            statusClass = 'online';
+            statusIcon = '<i class="fas fa-circle"></i>';
+            statusText = 'ONLINE';
+        } else if (device.status === 'DEGRADED') {
+            statusClass = 'degraded';
+            statusIcon = '<i class="fas fa-exclamation-triangle"></i>';
+            statusText = 'DEGRADED';
+        } else {
+            statusClass = 'offline';
+            statusIcon = '<i class="fas fa-circle"></i>';
+            statusText = 'OFFLINE';
+        }
+
+        const lastSeen = device.last_seen ? new Date(device.last_seen).toLocaleString('id-ID') : 'Tidak pernah';
+        const powerBackup = device.has_power_backup ? 'Ada' : 'Tidak Ada';
+        const wifiSsid = device.wifi_ssid || 'Tidak terkonfigurasi';
+        const wifiChanges = device.wifi_config_count || 0;
+        const remainingChanges = 5 - wifiChanges;
+
+        return `
+            <div class="device-item">
+                <div class="device-name">
+                    <i class="fas fa-microchip"></i>
+                    <h4>${escapeHtml(device.name)}</h4>
+                </div>
+                <div class="device-status ${statusClass}">
+                    ${statusIcon} ${statusText}
+                </div>
+                <div class="device-info">
+                    <p><i class="fas fa-map-marker-alt"></i> Lokasi: ${escapeHtml(device.location)}</p>
+                    <p><i class="fas fa-clock"></i> Last Seen: ${lastSeen}</p>
+                    <p><i class="fas fa-battery-full"></i> Power Backup: ${powerBackup}</p>
+                    <p><i class="fas fa-wifi"></i> WiFi: ${escapeHtml(wifiSsid)}</p>
+                    <p><i class="fas fa-chart-line"></i> Threshold: ${device.threshold_voltage}V / ${device.threshold_current}A</p>
+                    <p><i class="fas fa-sync-alt"></i> Perubahan WiFi: ${wifiChanges}/5</p>
+                    ${remainingChanges > 0 ? '' : '<p class="status-low"><i class="fas fa-exclamation-triangle"></i> Maksimal perubahan WiFi tercapai</p>'}
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 // ===============================
@@ -452,12 +718,11 @@ function renderDataLog(data) {
     if (!tbody) return;
     
     if (!data || !data.labels || data.labels.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="no-data">Belum ada data</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="no-data">Belum ada数据</td></tr>';
         return;
     }
     
     let html = '';
-    // Tampilkan 10 data terakhir (terbalik agar yang terbaru di atas)
     const labels = [...data.labels].reverse();
     const voltages = [...data.voltage].reverse();
     const currents = [...data.current].reverse();
@@ -522,14 +787,12 @@ async function fetchPowerData() {
         const data = await response.json();
         console.log("Power Data received:", data);
 
-        // Update chart
         if (chart && data.labels && data.voltage) {
             chart.data.labels = data.labels;
             chart.data.datasets[0].data = data.voltage;
             chart.update('active');
         }
 
-        // Update stats
         if (data.voltage && data.voltage.length > 0) {
             const current = data.voltage[data.voltage.length - 1];
             document.getElementById('currentVoltage').innerText = current.toFixed(1);
@@ -540,7 +803,6 @@ async function fetchPowerData() {
             document.getElementById('avgVoltage').innerText = avg;
         }
         
-        // Render data log table
         renderDataLog(data);
         
     } catch (error) {
@@ -556,7 +818,6 @@ async function fetchPowerData() {
 function initChart() {
     const canvas = document.getElementById('voltageChart');
     
-    // Hancurkan chart lama jika ada
     if (chart) {
         chart.destroy();
         chart = null;
@@ -595,10 +856,7 @@ function initChart() {
                         color: '#1e293b',
                         usePointStyle: true,
                         boxWidth: 10,
-                        font: {
-                            size: 11,
-                            weight: '500'
-                        }
+                        font: { size: 11, weight: '500' }
                     }
                 },
                 tooltip: {
@@ -622,101 +880,76 @@ function initChart() {
                     title: {
                         display: true,
                         text: 'Voltage (Volt)',
-                        font: {
-                            weight: '500',
-                            size: 11
-                        },
+                        font: { weight: '500', size: 11 },
                         color: '#64748b'
                     },
-                    grid: {
-                        color: '#e2e8f0',
-                        drawBorder: true
-                    },
+                    grid: { color: '#e2e8f0', drawBorder: true },
                     ticks: {
                         stepSize: 50,
-                        callback: function(value) {
-                            return value + ' V';
-                        },
+                        callback: function(value) { return value + ' V'; },
                         color: '#64748b',
-                        font: {
-                            size: 10
-                        }
+                        font: { size: 10 }
                     }
                 },
                 x: {
                     title: {
                         display: true,
                         text: 'Waktu',
-                        font: {
-                            weight: '500',
-                            size: 11
-                        },
+                        font: { weight: '500', size: 11 },
                         color: '#64748b'
                     },
-                    grid: {
-                        display: false
-                    },
+                    grid: { display: false },
                     ticks: {
                         color: '#64748b',
-                        font: {
-                            size: 10
-                        },
+                        font: { size: 10 },
                         maxRotation: 45,
                         minRotation: 45
                     }
                 }
             },
-            interaction: {
-                mode: 'nearest',
-                axis: 'x',
-                intersect: false
-            },
-            animation: {
-                duration: 500,
-                easing: 'easeInOutQuart'
-            }
+            interaction: { mode: 'nearest', axis: 'x', intersect: false },
+            animation: { duration: 500, easing: 'easeInOutQuart' }
         }
     });
 }
 
 // ===============================
-// REFRESH CHART
+// ESCAPE HTML
 // ===============================
-function refreshChart() {
-    const btn = document.querySelector('.chart-btn');
-    if (btn) {
-        btn.style.transform = 'rotate(360deg)';
-        btn.disabled = true;
-        setTimeout(() => {
-            btn.style.transform = 'rotate(0deg)';
-            btn.disabled = false;
-        }, 500);
-    }
-    fetchPowerData();
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // ===============================
 // START
 // ===============================
 document.addEventListener('DOMContentLoaded', () => {
-    // Inisialisasi chart
     initChart();
     
-    // Load data pertama kali
     setTimeout(() => {
         fetchPowerData();
     }, 100);
     
-    // Auto refresh setiap 5 detik
     if (refreshInterval) clearInterval(refreshInterval);
     refreshInterval = setInterval(fetchPowerData, 5000);
+    
+    // Load devices
+    loadDevices();
+    if (deviceRefreshInterval) clearInterval(deviceRefreshInterval);
+    deviceRefreshInterval = setInterval(loadDevices, 30000); // Refresh devices every 30 seconds
 });
 
-// Cleanup interval on page unload
 window.addEventListener('beforeunload', () => {
     if (refreshInterval) {
         clearInterval(refreshInterval);
         refreshInterval = null;
+    }
+    if (deviceRefreshInterval) {
+        clearInterval(deviceRefreshInterval);
+        deviceRefreshInterval = null;
     }
     if (chart) {
         chart.destroy();

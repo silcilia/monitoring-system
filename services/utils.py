@@ -11,18 +11,18 @@ logger = logging.getLogger(__name__)
 # =========================
 # KONFIGURASI WHATSAPP (FONNTE)
 # =========================
-FONTE_TOKEN = "Token" 
+FONTE_TOKEN = "token" 
 FONTE_URL = "https://api.fonnte.com/send"
 
 # =========================
 # KONFIGURASI EMAIL
 # =========================
-EMAIL_FROM = "noreply@monitoring.com"  # Ganti dengan email pengirim
+EMAIL_FROM = "jusadvocad1@gmail.com" 
 
 # =========================
 # THRESHOLD DETEKSI LEMOT (detik)
 # =========================
-SLOW_RESPONSE_THRESHOLD = 5.0  # lebih dari 5 detik dianggap lemot
+SLOW_RESPONSE_THRESHOLD = 5.0  
 
 # =========================
 # KATEGORI PENYEBAB DOWN

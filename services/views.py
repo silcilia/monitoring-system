@@ -871,3 +871,29 @@ class ManualCheckAPI(View):
             import traceback
             traceback.print_exc()
             return JsonResponse({"error": str(e)}, status=400)
+
+class DeviceAPI(View):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+        
+        devices = Device.objects.all()
+        data = [
+            {
+                "id": d.id,
+                "name": d.name,
+                "location": d.location,
+                "status": d.status,
+                "last_seen": d.last_seen.strftime("%Y-%m-%d %H:%M:%S") if d.last_seen else None,
+                "has_power_backup": d.has_power_backup,
+                "wifi_ssid": d.wifi_ssid,
+                "wifi_config_count": d.wifi_config_count,
+                "threshold_voltage": d.threshold_voltage,
+                "threshold_current": d.threshold_current,
+            } for d in devices
+        ]
+        return JsonResponse(data, safe=False)

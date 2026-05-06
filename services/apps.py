@@ -88,10 +88,3 @@ class ServicesConfig(AppConfig):
         thread.start()
         logger.info("Monitoring thread initialized and started")
 
-
-# =========================
-# MONITORING FUNCTIONS (akan dipanggil dari utils.py)
-# Jika belum ada, kita definisikan sementara
-# =========================
-# Catatan: Fungsi check_all_services() dan check_device_statuses()
-# sebenarnya sudah ada di utils.py. Jika belum, tambahkan.
