@@ -1,5 +1,5 @@
 // ===============================
-// 🔐 CSRF HELPER
+// CSRF HELPER
 // ===============================
 function getCSRFToken() {
     let cookieValue = null;
@@ -21,7 +21,7 @@ function getCSRFToken() {
 }
 
 // ===============================
-// 🌐 GLOBAL FETCH (API WRAPPER)
+// GLOBAL FETCH (API WRAPPER)
 // ===============================
 async function apiFetch(url, options = {}) {
     const defaultOptions = {
@@ -46,8 +46,6 @@ async function apiFetch(url, options = {}) {
     try {
         const response = await fetch(url, finalOptions);
 
-        // 🔥 JANGAN LANGSUNG REDIRECT KE LOGIN
-        // Biarkan error 401 ditangani oleh caller
         if (response.status === 401) {
             console.warn('Unauthorized access to:', url);
             throw new Error('Unauthorized');
@@ -75,7 +73,7 @@ async function apiFetch(url, options = {}) {
 }
 
 // ===============================
-// 🔔 NOTIFICATION
+// NOTIFICATION
 // ===============================
 function showNotification(message, type = 'success') {
     // Hapus notifikasi lama
@@ -138,7 +136,7 @@ function showNotification(message, type = 'success') {
 }
 
 // ===============================
-// 📦 SERVICES STATE
+// SERVICES STATE
 // ===============================
 let currentEditId = null;
 let currentDeleteId = null;
@@ -152,7 +150,7 @@ let currentServicesData = [];
 let currentContactsData = [];
 
 // ===============================
-// 📥 LOAD SERVICES (GET)
+// LOAD SERVICES (GET)
 // ===============================
 async function loadServices(page = 1, search = '') {
     const tableBody = document.getElementById('serviceTableBody');
@@ -258,7 +256,7 @@ function renderServicesTable(data, page, search) {
 }
 
 // ===============================
-// 📥 LOAD CONTACTS (GET)
+// LOAD CONTACTS (GET)
 // ===============================
 async function loadContacts(page = 1, search = '') {
     const tableBody = document.getElementById('contactTableBody');
@@ -364,7 +362,7 @@ function renderContactsTable(data, page, search) {
 }
 
 // ===============================
-// 📄 PAGINATION RENDER
+// PAGINATION RENDER
 // ===============================
 function renderPagination(type) {
     const paginationContainer = document.getElementById('pagination');
@@ -419,7 +417,7 @@ function renderPagination(type) {
 }
 
 // ===============================
-// 🔄 CHANGE PAGE
+// CHANGE PAGE
 // ===============================
 function changePage(page, type) {
     if (page < 1) return;
@@ -438,7 +436,7 @@ function changePage(page, type) {
 }
 
 // ===============================
-// 🔍 SEARCH FUNCTION
+// SEARCH FUNCTION
 // ===============================
 function searchTable() {
     currentPage = 1;
@@ -457,7 +455,7 @@ function searchTable() {
 }
 
 // ===============================
-// ✏️ SERVICE CRUD
+// SERVICE CRUD
 // ===============================
 function openCreate() {
     currentEditId = null;
@@ -549,7 +547,7 @@ async function deleteService() {
 }
 
 // ===============================
-// 👤 CONTACT CRUD
+// CONTACT CRUD
 // ===============================
 function openCreateContact() {
     currentEditId = null;
@@ -652,7 +650,7 @@ async function deleteContact() {
 }
 
 // ===============================
-// 🗑️ CONFIRM DELETE (UNIVERSAL)
+// CONFIRM DELETE
 // ===============================
 function confirmDelete() {
     if (currentDeleteType === 'service') {
@@ -663,7 +661,7 @@ function confirmDelete() {
 }
 
 // ===============================
-// 📋 COPY TO CLIPBOARD
+// COPY TO CLIPBOARD
 // ===============================
 function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(() => {
@@ -674,7 +672,7 @@ function copyToClipboard(text) {
 }
 
 // ===============================
-// 🪟 MODAL CONTROL
+// MODAL CONTROL
 // ===============================
 function showModal() {
     const modal = document.getElementById('serviceModal');
@@ -704,7 +702,7 @@ function closeDeleteModal() {
 }
 
 // ===============================
-// ⚡ POWER API
+// POWER API
 // ===============================
 let powerChart = null;
 let powerRefreshInterval = null;
@@ -820,7 +818,7 @@ function initPowerChart() {
 }
 
 // ===============================
-// 🧹 ESCAPE HTML
+// ESCAPE HTML
 // ===============================
 function escapeHtml(text) {
     if (!text) return '';
@@ -830,7 +828,7 @@ function escapeHtml(text) {
 }
 
 // ===============================
-// 🚀 INITIALIZE PAGE
+// INITIALIZE PAGE
 // ===============================
 document.addEventListener('DOMContentLoaded', () => {
     console.log('App.js ready');

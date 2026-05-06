@@ -3,9 +3,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'jusavocad'
-
 DEBUG = True  
-
 ALLOWED_HOSTS = []
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
@@ -117,7 +115,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 # ======================
-# DRF (PAKAI SESSION)
+# DRF
 # ======================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -136,9 +134,12 @@ LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/login/'
 
+MONITORING_ENABLED = True  # Aktifkan monitoring
+MONITORING_INTERVAL_SECONDS = 300  # 5 menit (300 detik)
+SLOW_RESPONSE_THRESHOLD = 5.0  # Threshold response time lemot (detik)
 
 # ======================
-# CSRF & COOKIE (AMAN)
+# CSRF & COOKIE
 # ======================
 CSRF_COOKIE_HTTPONLY = False
 SESSION_COOKIE_HTTPONLY = True

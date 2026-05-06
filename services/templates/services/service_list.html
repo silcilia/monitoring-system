@@ -59,6 +59,16 @@
         color: #991b1b;
     }
     
+    .status-degraded {
+        background: #fed7aa;
+        color: #92400e;
+    }
+    
+    .status-unknown {
+        background: #e2e8f0;
+        color: #475569;
+    }
+    
     .type-badge {
         display: inline-flex;
         align-items: center;
@@ -77,6 +87,68 @@
     .type-ping {
         background: #fef3c7;
         color: #92400e;
+    }
+    
+    /* Detail status styling */
+    .detail-info {
+        font-size: 11px;
+        color: #64748b;
+        margin-top: 4px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    
+    .detail-info .status-code {
+        font-family: monospace;
+        font-weight: 600;
+    }
+    
+    .detail-info .response-time {
+        font-family: monospace;
+    }
+    
+    .detail-info .down-reason {
+        color: #991b1b;
+    }
+    
+    /* Tooltip */
+    .detail-tooltip {
+        cursor: help;
+        border-bottom: 1px dashed #64748b;
+    }
+    
+    /* Manual check button */
+    .btn-check {
+        background: #3b82f6;
+        color: white;
+        padding: 4px 8px;
+        border: none;
+        border-radius: 6px;
+        font-size: 11px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-right: 5px;
+    }
+    
+    .btn-check:hover {
+        background: #2563eb;
+        transform: translateY(-1px);
+    }
+    
+    .btn-check:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+    }
+    
+    /* Last checked time */
+    .last-checked {
+        font-size: 10px;
+        color: #94a3b8;
+        margin-top: 4px;
     }
     
     .empty-state {
@@ -219,7 +291,12 @@
     .btn-danger:hover {
         background: #dc2626;
     }
-
+    
+    .btn-check-loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+    
     /* Header content */
     .header-content {
         background: white;
@@ -261,6 +338,33 @@
         align-items: center;
         gap: 8px;
     }
+    
+    /* Status legend */
+    .status-legend {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+        font-size: 12px;
+    }
+    
+    .status-legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .status-legend .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    
+    .dot-up { background: #10b981; }
+    .dot-down { background: #ef4444; }
+    .dot-degraded { background: #f59e0b; }
+    .dot-unknown { background: #64748b; }
 </style>
 
 <div class="page-header">
@@ -274,6 +378,12 @@
             <i class="fas fa-info-circle"></i>
             Kelola semua service monitoring
         </p>
+        <div class="status-legend">
+            <span><span class="dot dot-up"></span> UP - Normal</span>
+            <span><span class="dot dot-down"></span> DOWN - Gagal total</span>
+            <span><span class="dot dot-degraded"></span> DEGRADED - Lemot/lambat</span>
+            <span><span class="dot dot-unknown"></span> UNKNOWN - Belum dicek</span>
+        </div>
     </div>
 </div>
 
@@ -293,7 +403,7 @@
         <table class="modern-table">
             <thead>
                 <tr>
-                    <th><i class="fas fa-tag"></i> Nama</th>
+                    <th><i class="fas fa-tag"></i> Nama & Detail</th>
                     <th><i class="fas fa-link"></i> URL</th>
                     <th><i class="fas fa-code-branch"></i> Tipe</th>
                     <th><i class="fas fa-circle"></i> Status</th>
@@ -371,6 +481,7 @@
     let itemsPerPage = 10;
     let totalItems = 0;
     let allServices = [];
+    let checkingServiceId = null;
     
     // ===============================
     // CSRF TOKEN HELPER
@@ -388,6 +499,101 @@
             }
         }
         return cookieValue;
+    }
+    
+    // ===============================
+    // GET STATUS BADGE CLASS
+    // ===============================
+    function getStatusBadgeClass(status) {
+        switch(status) {
+            case 'UP': return 'status-up';
+            case 'DOWN': return 'status-down';
+            case 'DEGRADED': return 'status-degraded';
+            default: return 'status-unknown';
+        }
+    }
+    
+    // ===============================
+    // GET STATUS TEXT
+    // ===============================
+    function getStatusText(status) {
+        switch(status) {
+            case 'UP': return 'UP (Normal)';
+            case 'DOWN': return 'DOWN (Gagal)';
+            case 'DEGRADED': return 'DEGRADED (Lemot)';
+            default: return 'UNKNOWN';
+        }
+    }
+    
+    // ===============================
+    // GET READABLE DOWN REASON
+    // ===============================
+    function getReadableReason(reason, detail) {
+        const reasonMap = {
+            'TIMEOUT': '⏱️ Timeout - Server tidak merespon',
+            'CONNECTION_REFUSED': '🔌 Koneksi ditolak',
+            'NETWORK_UNREACHABLE': '🌐 Jaringan down total',
+            'DNS_ERROR': '🌐 DNS gagal resolve',
+            'SSL_ERROR': '🔒 SSL Certificate error',
+            'HTTP_403': '🚫 Forbidden (403) - Akses ditolak',
+            'HTTP_404': '🔍 Not Found (404) - Halaman tidak ditemukan',
+            'HTTP_502': '⚙️ Bad Gateway (502)',
+            'HTTP_503': '⚙️ Service Unavailable (503)',
+            'HTTP_504': '⏱️ Gateway Timeout (504)',
+            'HTTP_500': '💥 Internal Server Error (500)'
+        };
+        
+        if (reason && reasonMap[reason]) {
+            return reasonMap[reason];
+        }
+        if (detail) {
+            return detail.length > 60 ? detail.substring(0, 60) + '...' : detail;
+        }
+        return reason || 'Unknown error';
+    }
+    
+    // ===============================
+    // MANUAL CHECK SERVICE
+    // ===============================
+    async function manualCheck(serviceId) {
+        if (checkingServiceId === serviceId) return;
+        
+        checkingServiceId = serviceId;
+        const checkBtn = document.getElementById(`check-btn-${serviceId}`);
+        const originalHtml = checkBtn.innerHTML;
+        
+        checkBtn.disabled = true;
+        checkBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cek...';
+        
+        try {
+            const response = await fetch(`/api/services/${serviceId}/check/`, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCSRFToken()
+                }
+            });
+            
+            if (!response.ok) throw new Error('Check failed');
+            
+            const result = await response.json();
+            if (result.success) {
+                showNotification(`Service check completed: ${result.status}`, 'success');
+                loadServices(); // Reload data
+            } else {
+                showNotification(result.error || 'Check failed', 'error');
+            }
+            
+        } catch (error) {
+            console.error('Manual check error:', error);
+            showNotification('Gagal melakukan pengecekan', 'error');
+        } finally {
+            checkBtn.disabled = false;
+            checkBtn.innerHTML = originalHtml;
+            checkingServiceId = null;
+        }
     }
     
     // ===============================
@@ -421,7 +627,6 @@
             
             const data = await response.json();
             
-            // Handle jika response error
             if (data.error) {
                 console.error('Error:', data.error);
                 tbody.innerHTML = `
@@ -438,7 +643,6 @@
             allServices = data;
             totalItems = data.length;
             
-            // Update counter
             const countSpan = document.getElementById('serviceCount');
             if (countSpan) countSpan.innerHTML = totalItems + ' Service';
             
@@ -468,7 +672,6 @@
     function renderServicesTable(data, page, search) {
         const tbody = document.getElementById('serviceTableBody');
         
-        // Filter by search
         let filteredData = data;
         if (search) {
             filteredData = data.filter(item => 
@@ -478,7 +681,6 @@
             totalItems = filteredData.length;
         }
         
-        // Pagination
         const start = (page - 1) * itemsPerPage;
         const end = start + itemsPerPage;
         const pageData = filteredData.slice(start, end);
@@ -498,36 +700,83 @@
             return;
         }
         
-        tbody.innerHTML = pageData.map(s => `
-            <td>
-                <td data-label="Nama">
-                    <strong>${escapeHtml(s.name)}</strong>
-                </td>
-                <td data-label="URL">
-                    <code style="font-family: monospace; font-size: 0.8rem;">${escapeHtml(s.url)}</code>
-                </td>
-                <td data-label="Tipe">
-                    <span class="type-badge ${s.service_type === 'HTTP' ? 'type-http' : 'type-ping'}">
-                        ${s.service_type === 'HTTP' ? '🌐' : '📡'} ${s.service_type}
-                    </span>
-                </td>
-                <td data-label="Status">
-                    <span class="status-badge ${s.status === 'UP' ? 'status-up' : 'status-down'}">
-                        <i class="fas fa-circle"></i> ${s.status || '?'}
-                    </span>
-                </td>
-                <td data-label="Aksi">
-                    <div class="action-buttons">
-                        <button class="btn-edit" onclick="openEditService(${s.id}, '${escapeHtml(s.name)}', '${escapeHtml(s.url)}', '${s.service_type}')">
-                            <i class="fas fa-edit"></i> Edit
-                        </button>
-                        <button class="btn-delete" onclick="openDeleteService(${s.id}, '${escapeHtml(s.name)}')">
-                            <i class="fas fa-trash"></i> Hapus
-                        </button>
+        tbody.innerHTML = pageData.map(s => {
+            const statusClass = getStatusBadgeClass(s.status);
+            const statusText = getStatusText(s.status);
+            const readableReason = getReadableReason(s.down_reason, s.down_detail);
+            const lastChecked = s.last_checked ? new Date(s.last_checked).toLocaleString('id-ID') : 'Belum dicek';
+            const responseTime = s.response_time ? `${s.response_time.toFixed(2)}s` : '-';
+            const statusCode = s.status_code || '-';
+            
+            // Detail info HTML
+            let detailHtml = '';
+            if (s.status === 'DOWN') {
+                detailHtml = `
+                    <div class="detail-info">
+                        <span class="status-code">🔴 Kode: ${statusCode}</span>
+                        <span class="down-reason">📋 ${readableReason}</span>
+                        <span class="response-time">⏱️ Respon: ${responseTime}</span>
                     </div>
-                </td>
-            </tr>
-        `).join('');
+                `;
+            } else if (s.status === 'DEGRADED') {
+                detailHtml = `
+                    <div class="detail-info">
+                        <span class="response-time">⏱️ Respon: ${responseTime} (lambat >5s)</span>
+                    </div>
+                `;
+            } else if (s.status === 'UP') {
+                detailHtml = `
+                    <div class="detail-info">
+                        <span class="status-code">🟢 Kode: ${statusCode}</span>
+                        <span class="response-time">⏱️ Respon: ${responseTime}</span>
+                    </div>
+                `;
+            } else {
+                detailHtml = `
+                    <div class="detail-info">
+                        <span class="last-checked">⏰ Terakhir: ${lastChecked}</span>
+                    </div>
+                `;
+            }
+            
+            return `
+                <tr data-id="${s.id}">
+                    <td data-label="Nama">
+                        <strong>${escapeHtml(s.name)}</strong>
+                        <div class="detail-info">
+                            <span class="last-checked">🕐 ${lastChecked}</span>
+                        </div>
+                    </td>
+                    <td data-label="URL">
+                        <code style="font-family: monospace; font-size: 0.8rem;">${escapeHtml(s.url)}</code>
+                    </td>
+                    <td data-label="Tipe">
+                        <span class="type-badge ${s.service_type === 'HTTP' ? 'type-http' : 'type-ping'}">
+                            ${s.service_type === 'HTTP' ? '🌐' : '📡'} ${s.service_type}
+                        </span>
+                    </td>
+                    <td data-label="Status">
+                        <span class="status-badge ${statusClass}">
+                            <i class="fas fa-circle"></i> ${statusText}
+                        </span>
+                        ${detailHtml}
+                    </td>
+                    <td data-label="Aksi">
+                        <div class="action-buttons">
+                            <button class="btn-check" id="check-btn-${s.id}" onclick="manualCheck(${s.id})">
+                                <i class="fas fa-sync-alt"></i> Cek
+                            </button>
+                            <button class="btn-edit" onclick="openEditService(${s.id}, '${escapeHtml(s.name)}', '${escapeHtml(s.url)}', '${s.service_type}')">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button class="btn-delete" onclick="openDeleteService(${s.id}, '${escapeHtml(s.name)}')">
+                                <i class="fas fa-trash"></i> Hapus
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
     }
     
     // ===============================
@@ -546,14 +795,12 @@
         
         let html = '<div class="pagination-wrapper">';
         
-        // Previous button
         html += `
             <button class="page-btn" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
                 <i class="fas fa-chevron-left"></i>
             </button>
         `;
         
-        // Page numbers
         const startPage = Math.max(1, currentPage - 2);
         const endPage = Math.min(totalPages, currentPage + 2);
         
@@ -575,7 +822,6 @@
             html += `<button class="page-btn" onclick="changePage(${totalPages})">${totalPages}</button>`;
         }
         
-        // Next button
         html += `
             <button class="page-btn" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
                 <i class="fas fa-chevron-right"></i>
@@ -728,15 +974,14 @@
     let notificationTimeout = null;
     
     function showNotification(message, type = 'success') {
-        // Hapus notifikasi lama
         const oldNotif = document.querySelector('.custom-notification');
         if (oldNotif) oldNotif.remove();
         if (notificationTimeout) clearTimeout(notificationTimeout);
         
         const notification = document.createElement('div');
         notification.className = 'custom-notification';
-        const bgColor = type === 'success' ? '#10b981' : '#ef4444';
-        const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+        const bgColor = type === 'success' ? '#10b981' : (type === 'error' ? '#ef4444' : '#3b82f6');
+        const icon = type === 'success' ? 'fa-check-circle' : (type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle');
         
         notification.innerHTML = `
             <div style="
@@ -759,7 +1004,6 @@
             </div>
         `;
         
-        // Tambahkan style animasi jika belum ada
         if (!document.querySelector('#notification-style')) {
             const style = document.createElement('style');
             style.id = 'notification-style';
@@ -803,7 +1047,6 @@
     document.addEventListener('DOMContentLoaded', () => {
         loadServices();
         
-        // Close modal when clicking outside
         window.onclick = function(e) {
             const serviceModal = document.getElementById('serviceModal');
             const deleteModal = document.getElementById('deleteModal');
@@ -811,7 +1054,6 @@
             if (e.target === deleteModal) closeDeleteModal();
         };
         
-        // Close modal with ESC key
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeServiceModal();
@@ -819,10 +1061,8 @@
             }
         });
         
-        // Set confirm delete button
         const confirmBtn = document.getElementById('btnConfirmDelete');
         if (confirmBtn) {
-            // Hapus event listener lama jika ada
             const newBtn = confirmBtn.cloneNode(true);
             confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
             newBtn.onclick = confirmDelete;

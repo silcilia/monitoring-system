@@ -15,12 +15,12 @@ CHECK_TIMEOUT = 5
 RETRY_COUNT = 3
 COOLDOWN_MINUTES = 5
 
-FONTE_TOKEN = "jus"
+FONTE_TOKEN = "token"
 FONTE_URL = "https://api.fonnte.com/send"
 
 
 # =========================
-# 📲 WHATSAPP SENDER
+# WHATSAPP SENDER
 # =========================
 def send_whatsapp(message):
     contacts = Contact.objects.filter(is_active=True)
@@ -43,7 +43,7 @@ def send_whatsapp(message):
 
 
 # =========================
-# 🔔 ALERT FORMAT
+# ALERT FORMAT
 # =========================
 def send_alert(service, status):
     now = timezone.now().strftime("%d-%m-%Y %H:%M:%S")
@@ -66,7 +66,7 @@ Waktu   : {now}
 
 
 # =========================
-# 🌐 HTTP CHECK
+# HTTP CHECK
 # =========================
 def check_http(url):
     try:
@@ -88,7 +88,7 @@ def check_http(url):
 
 
 # =========================
-# 📡 PING CHECK (Linux & Windows)
+# PING CHECK (Linux & Windows)
 # =========================
 def check_ping(host):
     try:
@@ -110,7 +110,7 @@ def check_ping(host):
 
 
 # =========================
-# 🔀 ROUTER CHECK
+# ROUTER CHECK
 # =========================
 def check_service(service):
     if service.service_type == 'HTTP':
@@ -120,7 +120,7 @@ def check_service(service):
 
 
 # =========================
-# 🔁 STABLE CHECK (ANTI FALSE ALARM)
+# STABLE CHECK (ANTI FALSE ALARM)
 # =========================
 def stable_check(service):
     results = []
@@ -141,7 +141,7 @@ def stable_check(service):
 
 
 # =========================
-# ⏱️ COOLDOWN CHECK
+# COOLDOWN CHECK
 # =========================
 def can_notify(service):
     if not service.last_notified:
@@ -151,7 +151,7 @@ def can_notify(service):
 
 
 # =========================
-# 🚀 MAIN MONITOR LOOP
+# MAIN MONITOR LOOP
 # =========================
 def run_monitoring():
     services = Service.objects.all()
@@ -160,7 +160,7 @@ def run_monitoring():
         try:
             old_status = s.last_status
 
-            # 🔥 cek service
+            # cek service
             new_status, reason = stable_check(s)
 
             now = timezone.now()
@@ -168,14 +168,14 @@ def run_monitoring():
             s.last_checked = now
             s.last_down_reason = reason
 
-            # 📝 simpan log
+            # simpan log
             Log.objects.create(
                 service=s,
                 status=new_status,
                 message=reason
             )
 
-            # 🔔 kalau status berubah
+            # kalau status berubah
             if old_status != new_status:
 
                 if can_notify(s):

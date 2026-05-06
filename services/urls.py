@@ -22,6 +22,11 @@ urlpatterns = [
     path('services/edit/<int:pk>/', ServiceUpdateView.as_view(), name='service_update'),
     path('services/delete/<int:pk>/', ServiceDeleteView.as_view(), name='service_delete'),
 
+    path('api/services/<int:pk>/logs/', ServiceLogAPI.as_view(), name='api_service_logs'),
+    path('api/services/<int:pk>/check/', ManualCheckAPI.as_view(), name='api_manual_check'),
+    path('api/monitoring/start/', StartMonitoringAPI.as_view(), name='api_start_monitoring'),
+    path('api/services/<int:pk>/check/', csrf_exempt(ManualCheckAPI.as_view()), name='api_manual_check'),
+    path('api/services/<int:pk>/logs/', ServiceLogAPI.as_view(), name='api_service_logs'),
     # ======================
     # CONTACTS (WEB)
     # ======================
@@ -52,6 +57,7 @@ urlpatterns = [
     # =====================================================
     path('api/services/', csrf_exempt(ServiceAPI.as_view()), name='api_services'),
     path('api/services/<int:pk>/', csrf_exempt(ServiceDetailAPI.as_view()), name='api_service_detail'),
+    
 
     # =====================================================
     # CONTACT API (csrf_exempt)

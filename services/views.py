@@ -6,7 +6,12 @@ from django.utils import timezone
 from datetime import timedelta
 from collections import defaultdict
 from django.http import JsonResponse
-from .models import Service, Contact, PowerLog, Log, Device, ServiceContact, DeviceContact
+from django.core.management import call_command
+from django.db.models import Q
+import threading
+import time
+
+from .models import Service, Contact, PowerLog, Log, Device, ServiceContact, DeviceContact, NotificationLog
 
 # ======================
 # AUTH DJANGO
@@ -22,6 +27,11 @@ from django.views.decorators.http import require_http_methods
 from django.utils.decorators import method_decorator
 import json
 
+# ======================
+# IMPORT UTILS
+# ======================
+from .utils import check_service_status, send_alert, update_uptime_percentage
+
 
 # ======================
 # HELPER DASHBOARD
@@ -32,6 +42,7 @@ def get_dashboard_data():
     total = services.count()
     up = services.filter(last_status='UP').count()
     down = services.filter(last_status='DOWN').count()
+    degraded = services.filter(last_status='DEGRADED').count()
 
     percent = int((up / total) * 100) if total > 0 else 0
 
@@ -66,6 +77,7 @@ def get_dashboard_data():
         'total': total,
         'up': up,
         'down': down,
+        'degraded': degraded,
         'percent': percent,
         'labels': labels,
         'data': data,
@@ -73,9 +85,108 @@ def get_dashboard_data():
 
 
 # ======================
+# MONITORING SERVICE (CHECK ALL SERVICES)
+# ======================
+def check_all_services():
+    """Memeriksa semua service dan update status"""
+    services = Service.objects.all()
+    
+    for service in services:
+        try:
+            # Gunakan fungsi dari utils.py
+            status, response_time, status_code, down_reason, down_detail = check_service_status(service)
+            
+            # Update last_checked
+            service.last_checked = timezone.now()
+            service.last_response_time = response_time
+            service.last_status_code = status_code
+            
+            # Cek apakah status berubah
+            old_status = service.last_status
+            
+            if status != old_status:
+                service.last_status = status
+                service.last_down_reason = down_reason
+                service.last_down_detail = down_detail
+                
+                # Simpan ke log
+                Log.objects.create(
+                    service=service,
+                    status=status,
+                    status_code=status_code,
+                    response_time=response_time,
+                    down_reason=down_reason,
+                    message=down_detail
+                )
+                
+                # Kirim notifikasi jika DOWN atau DEGRADED
+                if status in ['DOWN', 'DEGRADED']:
+                    send_alert(service, status, status_code, response_time, down_reason, down_detail)
+                elif status == 'UP' and old_status in ['DOWN', 'DEGRADED']:
+                    # Kirim notifikasi recovery
+                    send_alert(service, status, status_code, response_time, down_reason, down_detail)
+            else:
+                # Status tidak berubah, tetap update log jika perlu
+                if status == 'DOWN' or status == 'DEGRADED':
+                    Log.objects.create(
+                        service=service,
+                        status=status,
+                        status_code=status_code,
+                        response_time=response_time,
+                        down_reason=down_reason,
+                        message=down_detail
+                    )
+            
+            # Update uptime percentage
+            update_uptime_percentage(service)
+            
+            service.save()
+            
+        except Exception as e:
+            print(f"Error checking service {service.name}: {e}")
+            
+            # Log error
+            Log.objects.create(
+                service=service,
+                status='UNKNOWN',
+                message=f"Monitoring error: {str(e)[:200]}"
+            )
+
+
+# ======================
+# MONITORING THREAD (UNTUK BACKGROUND TASK)
+# ======================
+monitoring_thread_running = False
+
+def start_monitoring_thread():
+    """Jalankan monitoring di background thread"""
+    global monitoring_thread_running
+    
+    if monitoring_thread_running:
+        return
+    
+    def monitor_loop():
+        global monitoring_thread_running
+        monitoring_thread_running = True
+        
+        while monitoring_thread_running:
+            try:
+                print("Running scheduled monitoring check...")
+                check_all_services()
+            except Exception as e:
+                print(f"Monitoring error: {e}")
+            
+            # Tunggu 5 menit sebelum cek lagi
+            time.sleep(300)  # 300 detik = 5 menit
+    
+    thread = threading.Thread(target=monitor_loop, daemon=True)
+    thread.start()
+    print("Monitoring thread started")
+
+
+# ======================
 # DASHBOARD (WEB)
 # ======================
-
 class DashboardView(TemplateView):
     template_name = 'services/dashboard.html'
 
@@ -92,6 +203,7 @@ class DashboardView(TemplateView):
         context = super().get_context_data(**kwargs)
         context.update(get_dashboard_data())
         return context
+
 
 # ======================
 # SERVICES (WEB)
@@ -141,7 +253,7 @@ class ServiceDeleteView(View):
 
 
 # ======================
-# SERVICE API
+# SERVICE API (DENGAN DETAIL LENGKAP)
 # ======================
 class ServiceAPI(View):
     @method_decorator(csrf_exempt)
@@ -159,7 +271,13 @@ class ServiceAPI(View):
                 "name": s.name,
                 "url": s.url,
                 "service_type": s.service_type,
-                "status": s.last_status
+                "status": s.last_status,
+                "status_code": s.last_status_code,
+                "response_time": s.last_response_time,
+                "down_reason": s.last_down_reason,
+                "down_detail": s.last_down_detail,
+                "uptime_percentage": s.uptime_percentage,
+                "last_checked": s.last_checked.strftime("%Y-%m-%d %H:%M:%S") if s.last_checked else None
             } for s in services
         ]
         return JsonResponse(data, safe=False)
@@ -183,10 +301,32 @@ class ServiceAPI(View):
             return JsonResponse({"error": str(e)}, status=400)
 
 
+# ======================
+# SERVICE DETAIL API
+# ======================
 class ServiceDetailAPI(View):
     @method_decorator(csrf_exempt)
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
+
+    def get(self, request, pk):  # 🔥 TAMBAHKAN method GET
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+        
+        service = get_object_or_404(Service, pk=pk)
+        return JsonResponse({
+            "id": service.id,
+            "name": service.name,
+            "url": service.url,
+            "service_type": service.service_type,
+            "status": service.last_status,
+            "status_code": service.last_status_code,
+            "response_time": service.last_response_time,
+            "down_reason": service.last_down_reason,
+            "down_detail": service.last_down_detail,
+            "uptime_percentage": service.uptime_percentage,
+            "last_checked": service.last_checked.strftime("%Y-%m-%d %H:%M:%S") if service.last_checked else None
+        })
 
     def put(self, request, pk):
         if not request.user.is_authenticated:
@@ -229,7 +369,7 @@ class ContactListView(ListView):
 class ContactCreateView(CreateView):
     model = Contact
     template_name = 'services/contact_form.html'
-    fields = ['name', 'phone_number']
+    fields = ['name', 'phone_number', 'email', 'notification_channel']
     success_url = reverse_lazy('contact_list')
 
     def dispatch(self, request, *args, **kwargs):
@@ -241,7 +381,7 @@ class ContactCreateView(CreateView):
 class ContactUpdateView(UpdateView):
     model = Contact
     template_name = 'services/contact_form.html'
-    fields = ['name', 'phone_number']
+    fields = ['name', 'phone_number', 'email', 'notification_channel', 'is_active']
     success_url = reverse_lazy('contact_list')
 
     def dispatch(self, request, *args, **kwargs):
@@ -276,7 +416,10 @@ class ContactAPI(View):
             {
                 "id": c.id,
                 "name": c.name,
-                "phone": c.phone_number
+                "phone": c.phone_number,
+                "email": c.email,
+                "notification_channel": c.notification_channel,
+                "is_active": c.is_active
             } for c in contacts
         ]
         return JsonResponse(data, safe=False)
@@ -289,7 +432,9 @@ class ContactAPI(View):
             data = json.loads(request.body)
             contact = Contact.objects.create(
                 name=data.get("name"),
-                phone_number=data.get("phone")
+                phone_number=data.get("phone"),
+                email=data.get("email"),
+                notification_channel=data.get("notification_channel", "WHATSAPP")
             )
             return JsonResponse({
                 "message": "Contact berhasil ditambahkan",
@@ -313,6 +458,9 @@ class ContactDetailAPI(View):
             contact = get_object_or_404(Contact, pk=pk)
             contact.name = data.get("name")
             contact.phone_number = data.get("phone")
+            contact.email = data.get("email")
+            contact.notification_channel = data.get("notification_channel")
+            contact.is_active = data.get("is_active", True)
             contact.save()
             return JsonResponse({"message": "Contact diupdate"})
         except Exception as e:
@@ -325,6 +473,34 @@ class ContactDetailAPI(View):
         contact = get_object_or_404(Contact, pk=pk)
         contact.delete()
         return JsonResponse({"message": "Contact dihapus"})
+
+
+# ======================
+# SERVICE LOG API (UNTUK HISTORY)
+# ======================
+class ServiceLogAPI(View):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def get(self, request, service_id):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+        
+        service = get_object_or_404(Service, pk=service_id)
+        logs = service.log_set.all().order_by('-timestamp')[:50]
+        
+        data = [
+            {
+                "status": log.status,
+                "status_code": log.status_code,
+                "response_time": log.response_time,
+                "down_reason": log.down_reason,
+                "message": log.message,
+                "timestamp": log.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            } for log in logs
+        ]
+        return JsonResponse(data, safe=False)
 
 
 # ======================
@@ -342,14 +518,19 @@ class PowerView(TemplateView):
 # ======================
 # POWER API
 # ======================
-
 @method_decorator(csrf_exempt, name='dispatch')
 class PowerDataAPI(View):
     def get(self, request):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Unauthorized"}, status=401)
 
-        logs = PowerLog.objects.all().order_by('-timestamp')[:10]
+        # Ambil device_id dari parameter (optional)
+        device_id = request.GET.get('device_id')
+        
+        if device_id:
+            logs = PowerLog.objects.filter(device_id=device_id).order_by('-timestamp')[:10]
+        else:
+            logs = PowerLog.objects.all().order_by('-timestamp')[:10]
 
         logs_list = list(reversed(logs))
         
@@ -364,19 +545,13 @@ class PowerDataAPI(View):
             currents.append(log.current)
             powers.append(log.power)
         
-        # Debug print (tanpa error)
-        print(f"=== PowerDataAPI ===")
-        print(f"Total data: {len(logs_list)}")
-        if len(labels) > 0:
-            print(f"Latest voltage: {voltages[-1]}V")
-        print(f"==================")
-        
         return JsonResponse({
             "labels": labels,
             "voltage": voltages,
             "current": currents,
             "power": powers,
         })
+
 
 # ======================
 # IoT API (API KEY)
@@ -393,9 +568,16 @@ class PowerCreateAPI(View):
             device_id = data.get('device_id')
             
             if device_id:
-                # Cek apakah device dengan ID tersebut ada
                 try:
                     device = Device.objects.get(id=device_id)
+                    # Update last_seen
+                    device.last_seen = timezone.now()
+                    if device.status == 'OFFLINE':
+                        device.status = 'ONLINE'
+                        # Kirim notifikasi device online
+                        from .utils import send_device_alert
+                        send_device_alert(device, is_offline=False)
+                    device.save()
                 except Device.DoesNotExist:
                     return JsonResponse({'error': f'Device with id {device_id} not found'}, status=400)
             else:
@@ -409,6 +591,12 @@ class PowerCreateAPI(View):
                 current=data.get('current'),
                 power=data.get('power')
             )
+            
+            # Cek threshold
+            if data.get('voltage', 0) < device.threshold_voltage:
+                from .utils import send_device_alert
+                # Kirim alert threshold jika perlu
+                pass
             
             return JsonResponse({
                 "message": "Data power berhasil disimpan",
@@ -427,6 +615,76 @@ class PowerCreateAPI(View):
             return JsonResponse({"error": "Invalid JSON format"}, status=400)
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
+
+
+# ======================
+# MANUAL CHECK API (Untuk test dari frontend)
+# ======================
+@method_decorator(csrf_exempt, name='dispatch')
+class ManualCheckAPI(View):
+    def post(self, request, service_id):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+        
+        service = get_object_or_404(Service, pk=service_id)
+        
+        try:
+            status, response_time, status_code, down_reason, down_detail = check_service_status(service)
+            
+            old_status = service.last_status
+            
+            service.last_checked = timezone.now()
+            service.last_response_time = response_time
+            service.last_status_code = status_code
+            service.last_status = status
+            service.last_down_reason = down_reason
+            service.last_down_detail = down_detail
+            service.save()
+            
+            # Simpan log
+            Log.objects.create(
+                service=service,
+                status=status,
+                status_code=status_code,
+                response_time=response_time,
+                down_reason=down_reason,
+                message=down_detail
+            )
+            
+            # Kirim notifikasi jika perlu
+            if status in ['DOWN', 'DEGRADED'] and old_status != status:
+                send_alert(service, status, status_code, response_time, down_reason, down_detail)
+            elif status == 'UP' and old_status in ['DOWN', 'DEGRADED']:
+                send_alert(service, status, status_code, response_time, down_reason, down_detail)
+            
+            # Update uptime
+            update_uptime_percentage(service)
+            
+            return JsonResponse({
+                "success": True,
+                "status": status,
+                "status_code": status_code,
+                "response_time": response_time,
+                "down_reason": down_reason,
+                "down_detail": down_detail
+            })
+            
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
+
+
+# ======================
+# TRIGGER MONITORING API (Start monitoring thread)
+# ======================
+@method_decorator(csrf_exempt, name='dispatch')
+class StartMonitoringAPI(View):
+    def post(self, request):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+        
+        start_monitoring_thread()
+        return JsonResponse({"message": "Monitoring thread started"})
+
 
 # ======================
 # AUTH API
@@ -451,7 +709,6 @@ class LoginAPI(View):
 
         if user:
             login(request, user)
-            
             request.session.save()
             print(f"Login berhasil: {username}")
             print(f"Session key: {request.session.session_key}")
@@ -515,17 +772,16 @@ class LoginPageView(TemplateView):
 
 
 # ======================
-# DASHBOARD API
+# DASHBOARD API (SINGLE - HAPUS DUPLICATE)
 # ======================
+@method_decorator(csrf_exempt, name='dispatch')
 class DashboardAPI(View):
-    @method_decorator(csrf_exempt)
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
     def get(self, request):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Unauthorized"}, status=401)
-        return JsonResponse(get_dashboard_data())
+        
+        data = get_dashboard_data()
+        return JsonResponse(data)
 
 
 # ======================
@@ -542,6 +798,7 @@ class CheckAuthAPI(View):
             "username": request.user.username if request.user.is_authenticated else None
         })
 
+
 @method_decorator(csrf_exempt, name='dispatch')
 class DebugSessionAPI(View):
     def get(self, request):
@@ -552,18 +809,65 @@ class DebugSessionAPI(View):
             "session_items": dict(request.session.items()),
             "cookies": request.COOKIES.get('sessionid', None)
         })
-
+    
 # ======================
-# DASHBOARD API
+# MANUAL CHECK API (Untuk test dari frontend)
 # ======================
-class DashboardAPI(View):
-    @method_decorator(csrf_exempt)
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
-    def get(self, request):
+@method_decorator(csrf_exempt, name='dispatch')
+class ManualCheckAPI(View):
+    def post(self, request, pk):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Unauthorized"}, status=401)
         
-        data = get_dashboard_data()
-        return JsonResponse(data)
+        service = get_object_or_404(Service, pk=pk)
+        
+        try:
+            # Panggil fungsi check_service_status dari utils
+            from .utils import check_service_status, send_alert, update_uptime_percentage
+            
+            status, response_time, status_code, down_reason, down_detail = check_service_status(service)
+            
+            old_status = service.last_status
+            
+            # Update service
+            service.last_checked = timezone.now()
+            service.last_response_time = response_time
+            service.last_status_code = status_code
+            service.last_status = status
+            service.last_down_reason = down_reason
+            service.last_down_detail = down_detail
+            service.save()
+            
+            # Simpan log
+            from .models import Log
+            Log.objects.create(
+                service=service,
+                status=status,
+                status_code=status_code,
+                response_time=response_time,
+                down_reason=down_reason,
+                message=down_detail
+            )
+            
+            # Kirim notifikasi jika perlu
+            if status in ['DOWN', 'DEGRADED'] and old_status != status:
+                send_alert(service, status, status_code, response_time, down_reason, down_detail)
+            elif status == 'UP' and old_status in ['DOWN', 'DEGRADED']:
+                send_alert(service, status, status_code, response_time, down_reason, down_detail)
+            
+            # Update uptime
+            update_uptime_percentage(service)
+            
+            return JsonResponse({
+                "success": True,
+                "status": status,
+                "status_code": status_code,
+                "response_time": response_time,
+                "down_reason": down_reason,
+                "down_detail": down_detail
+            })
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({"error": str(e)}, status=400)
