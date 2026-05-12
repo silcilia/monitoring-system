@@ -49,7 +49,7 @@ class Service(models.Model):
     # WAKTU TERAKHIR CEK
     last_checked = models.DateTimeField(null=True, blank=True)
 
-    # 🔥 PERBAIKI: Tambah max_length=255
+    # Tambah max_length=255
     last_down_reason = models.CharField(
         max_length=255,  # dari 50 jadi 255
         choices=DOWN_REASON_CHOICES,
@@ -57,13 +57,13 @@ class Service(models.Model):
         blank=True
     )
 
-    # 🔥 PERBAIKI: Tambah max_length=255
+    # PERBAIKI: Tambah max_length=255
     last_down_detail = models.CharField(max_length=500, null=True, blank=True)
 
-    # 🔥 STATUS CODE HTTP
+    # STATUS CODE HTTP
     last_status_code = models.IntegerField(null=True, blank=True)
 
-    # 🔥 WAKTU RESPON
+    # WAKTU RESPON
     last_response_time = models.FloatField(null=True, blank=True)
 
     # ANTI SPAM NOTIF

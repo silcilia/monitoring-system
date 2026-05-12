@@ -106,11 +106,11 @@ def check_service_status(service):
             status_code = response.status_code
             response_time = time.time() - start_time
             
-            # 🔥 DETEKSI LEMOT (response time > threshold)
+            # DETEKSI LEMOT (response time > threshold)
             if response_time > SLOW_RESPONSE_THRESHOLD:
                 return 'DEGRADED', response_time, status_code, 'TIMEOUT', f'Response slow: {response_time:.2f}s'
             
-            # 🔥 DETEKSI HTTP STATUS CODE
+            # DETEKSI HTTP STATUS CODE
             if 200 <= status_code < 300:
                 return 'UP', response_time, status_code, None, None
             else:
@@ -118,7 +118,7 @@ def check_service_status(service):
                 return 'DOWN', response_time, status_code, reason, detail
         
         elif service.service_type == 'PING':
-            # 🔥 UNTUK PING, gunakan sistem ping (perlu library)
+            # UNTUK PING
             import subprocess
             import platform
             
@@ -254,12 +254,12 @@ def send_alert(service, status, status_code=None, response_time=None, down_reaso
     """
     now = timezone.now().strftime("%d-%m-%Y %H:%M:%S")
     
-    # 🔥 CEK APAKAH PERLU KIRIM NOTIFIKASI (ANTI SPAM)
+    # KIRIM NOTIFIKASI (ANTI SPAM)
     if not service.needs_notification():
         logger.info(f"Notification cooldown active for service {service.name}")
         return
     
-    # 🔥 UPDATE last_notified
+    # UPDATE last_notified
     service.last_notified = timezone.now()
     service.save(update_fields=['last_notified'])
     
@@ -270,7 +270,7 @@ def send_alert(service, status, status_code=None, response_time=None, down_reaso
         logger.warning(f"No contacts found for service {service.name}")
         return
     
-    # 🔥 BUAT PESAN BERDASARKAN STATUS
+    # PESAN BERDASARKAN STATUS
     if status == 'DOWN':
         # Peta readable reason
         reason_display = {
@@ -357,7 +357,7 @@ def send_alert(service, status, status_code=None, response_time=None, down_reaso
 ━━━━━━━━━━━━━━━━━━━━━━━━
 """
     
-    # 🔥 KIRIM KE SEMUA CONTACT
+    # KIRIM KE SEMUA CONTACT
     for sc in service_contacts:
         contact = sc.contact
         if contact.is_active:

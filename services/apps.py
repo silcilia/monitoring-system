@@ -24,7 +24,6 @@ class ServicesConfig(AppConfig):
         if os.environ.get('RUN_MAIN') != 'true':
             return
 
-        # 🔥 Mulai thread monitoring
         self.start_monitoring_thread()
 
     def start_monitoring_thread(self):
@@ -37,12 +36,9 @@ class ServicesConfig(AppConfig):
                 return
             _monitoring_started = True
 
-        # 🔥 Monitoring interval (detik) - default 5 menit
-        # Bisa diubah dari settings atau environment variable
         from django.conf import settings
         interval = getattr(settings, 'MONITORING_INTERVAL_SECONDS', 300)  # 300 = 5 menit
 
-        # 🔥 Apakah monitoring diaktifkan?
         enabled = getattr(settings, 'MONITORING_ENABLED', True)
 
         if not enabled:
@@ -63,7 +59,7 @@ class ServicesConfig(AppConfig):
                 try:
                     logger.info("Running scheduled service status check...")
                     
-                    # 🔥 Panggil fungsi monitoring dari utils.py
+                    
                     from .utils import check_all_services, check_device_statuses
                     
                     # Cek semua service
@@ -82,7 +78,7 @@ class ServicesConfig(AppConfig):
                 # Tunggu sampai interval berikutnya
                 time.sleep(interval)
 
-        # 🔥 Jalankan thread daemon (akan berhenti ketika Django berhenti)
+        # thread daemon (akan berhenti ketika Django berhenti)
         thread = threading.Thread(target=monitoring_loop, daemon=True)
         thread.name = "ServiceMonitoringThread"
         thread.start()

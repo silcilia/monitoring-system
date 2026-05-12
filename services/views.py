@@ -309,7 +309,7 @@ class ServiceDetailAPI(View):
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
-    def get(self, request, pk):  # 🔥 TAMBAHKAN method GET
+    def get(self, request, pk): 
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Unauthorized"}, status=401)
         
