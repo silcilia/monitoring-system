@@ -1,5 +1,6 @@
 import requests
 from datetime import datetime
+from django.conf import settings
 from .models import (
     Service, Log, ServiceContact,
     Device, PowerLog, DeviceContact
@@ -20,9 +21,9 @@ def check_service(url):
 # KIRIM WA
 # =========================
 def send_whatsapp(message, number):
-    url = "https://api.fonnte.com/send"
+    url = settings.FONTE_API
     headers = {
-        "Authorization": "token"
+        "Authorization": settings.FONTE_TOKEN
     }
 
     data = {

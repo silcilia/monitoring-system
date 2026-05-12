@@ -1,9 +1,13 @@
 from pathlib import Path
+from dotenv import load_dotenv
+import os
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv()
 
-SECRET_KEY = 'jusavocad'
-DEBUG = True  
+SECRET_KEY = os.getenv("SECRET_KEY")
+DEBUG = os.getenv("DEBUG") == "True"
 ALLOWED_HOSTS = []
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
@@ -75,14 +79,13 @@ WSGI_APPLICATION = 'monitoring_system.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'monitoring_db',
-        'USER': 'postgres',
-        'PASSWORD': 'LIIAA',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'NAME': os.getenv("DB_NAME"),
+        'USER': os.getenv("DB_USER"),
+        'PASSWORD': os.getenv("DB_PASSWORD"),
+        'HOST': os.getenv("DB_HOST"),
+        'PORT': os.getenv("DB_PORT"),
     }
 }
-
 
 # ======================
 # PASSWORD VALIDATION
@@ -147,3 +150,7 @@ SESSION_COOKIE_HTTPONLY = True
 CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:8000",
 ]
+
+FONTE_TOKEN = os.getenv("FONTE_TOKEN")
+FONTE_API = os.getenv("FONTE_API")
+EMAIL_FROM = os.getenv("EMAIL_FROM")

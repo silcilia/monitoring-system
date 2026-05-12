@@ -2,10 +2,9 @@ import requests
 import subprocess
 import platform
 from datetime import timedelta
-
 from django.utils import timezone
-
 from .models import Service, Log, Contact
+from django.conf import settings
 
 
 # =========================
@@ -15,9 +14,8 @@ CHECK_TIMEOUT = 5
 RETRY_COUNT = 3
 COOLDOWN_MINUTES = 5
 
-FONTE_TOKEN = "token"
-FONTE_URL = "https://api.fonnte.com/send"
-
+FONTE_TOKEN = settings.FONTE_TOKEN
+FONTE_URL = settings.FONTE_API
 
 # =========================
 # WHATSAPP SENDER

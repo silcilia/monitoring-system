@@ -5,19 +5,22 @@ from django.core.mail import send_mail
 from django.conf import settings
 from .models import Contact, Service, NotificationLog
 import logging
+from django.conf import settings
+
 
 logger = logging.getLogger(__name__)
 
 # =========================
 # KONFIGURASI WHATSAPP (FONNTE)
 # =========================
-FONTE_TOKEN = "token" 
-FONTE_URL = "https://api.fonnte.com/send"
+FONTE_TOKEN = settings.FONTE_TOKEN
+FONTE_URL = settings.FONTE_API
 
 # =========================
 # KONFIGURASI EMAIL
 # =========================
-EMAIL_FROM = "jusadvocad1@gmail.com" 
+EMAIL_FROM = settings.EMAIL_FROM
+
 
 # =========================
 # THRESHOLD DETEKSI LEMOT (detik)
@@ -176,7 +179,7 @@ def send_whatsapp(phone_number, message):
                 "message": message
             },
             headers={
-                "Authorization": FONTE_TOKEN
+                "Authorization": settings.FONTE_TOKEN
             }
         )
         return response.status_code == 200

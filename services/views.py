@@ -9,7 +9,14 @@ from django.http import JsonResponse
 from django.core.management import call_command
 from django.db.models import Q
 import threading
+from django.conf import settings
+
 import time
+from .utils import (
+    check_service_status,
+    send_alert,
+    update_uptime_percentage
+)
 
 from .models import Service, Contact, PowerLog, Log, Device, ServiceContact, DeviceContact, NotificationLog
 
@@ -560,7 +567,7 @@ class PowerDataAPI(View):
 class PowerCreateAPI(View):
     def post(self, request):
         api_key = request.headers.get('X-API-KEY')
-        if api_key != 'jusavocad':
+        if api_key != settings.API_KEY:
             return JsonResponse({'error': 'Unauthorized'}, status=403)
 
         try:
@@ -615,63 +622,6 @@ class PowerCreateAPI(View):
             return JsonResponse({"error": "Invalid JSON format"}, status=400)
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
-
-
-# ======================
-# MANUAL CHECK API (Untuk test dari frontend)
-# ======================
-@method_decorator(csrf_exempt, name='dispatch')
-class ManualCheckAPI(View):
-    def post(self, request, service_id):
-        if not request.user.is_authenticated:
-            return JsonResponse({"error": "Unauthorized"}, status=401)
-        
-        service = get_object_or_404(Service, pk=service_id)
-        
-        try:
-            status, response_time, status_code, down_reason, down_detail = check_service_status(service)
-            
-            old_status = service.last_status
-            
-            service.last_checked = timezone.now()
-            service.last_response_time = response_time
-            service.last_status_code = status_code
-            service.last_status = status
-            service.last_down_reason = down_reason
-            service.last_down_detail = down_detail
-            service.save()
-            
-            # Simpan log
-            Log.objects.create(
-                service=service,
-                status=status,
-                status_code=status_code,
-                response_time=response_time,
-                down_reason=down_reason,
-                message=down_detail
-            )
-            
-            # Kirim notifikasi jika perlu
-            if status in ['DOWN', 'DEGRADED'] and old_status != status:
-                send_alert(service, status, status_code, response_time, down_reason, down_detail)
-            elif status == 'UP' and old_status in ['DOWN', 'DEGRADED']:
-                send_alert(service, status, status_code, response_time, down_reason, down_detail)
-            
-            # Update uptime
-            update_uptime_percentage(service)
-            
-            return JsonResponse({
-                "success": True,
-                "status": status,
-                "status_code": status_code,
-                "response_time": response_time,
-                "down_reason": down_reason,
-                "down_detail": down_detail
-            })
-            
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
-
 
 # ======================
 # TRIGGER MONITORING API (Start monitoring thread)
@@ -822,8 +772,6 @@ class ManualCheckAPI(View):
         service = get_object_or_404(Service, pk=pk)
         
         try:
-            # Panggil fungsi check_service_status dari utils
-            from .utils import check_service_status, send_alert, update_uptime_percentage
             
             status, response_time, status_code, down_reason, down_detail = check_service_status(service)
             
