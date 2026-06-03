@@ -1,12 +1,18 @@
 import requests
 import time
+import socket
+import urllib3
+import warnings
 from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
 from .models import Contact, Service, NotificationLog
 import logging
-from django.conf import settings
 
+# ========== MATIKAN WARNING YANG MENGGANGGU ==========
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+warnings.filterwarnings('ignore', message='Unverified HTTPS request')
+warnings.filterwarnings('ignore', category=ResourceWarning)
 
 logger = logging.getLogger(__name__)
 
@@ -21,149 +27,210 @@ FONTE_URL = settings.FONTE_API
 # =========================
 EMAIL_FROM = settings.EMAIL_FROM
 
-
 # =========================
 # THRESHOLD DETEKSI LEMOT (detik)
 # =========================
-SLOW_RESPONSE_THRESHOLD = 5.0  
+SLOW_RESPONSE_THRESHOLD = 3.0
 
 # =========================
-# KATEGORI PENYEBAB DOWN
+# THRESHOLD KONTEN MINIMAL (karakter)
 # =========================
-def classify_down_reason(status_code=None, response_time=None, error_type=None):
+MIN_CONTENT_LENGTH = 100
+
+# =========================
+# TIMEOUT UNTUK REQUEST (detik)
+# =========================
+REQUEST_TIMEOUT = 8
+
+
+# =========================
+# CEK KONEKSI INTERNET (GLOBAL)
+# =========================
+def is_internet_available(host="8.8.8.8", port=53, timeout=3):
     """
-    Klasifikasi penyebab down berdasarkan:
-    - status_code: HTTP status code (403, 404, 502, dll)
-    - response_time: waktu respon (detik)
-    - error_type: jenis error dari requests (Timeout, ConnectionError, dll)
+    Cek apakah ada koneksi internet
+    Returns True jika internet tersedia, False jika tidak
+    """
+    try:
+        socket.setdefaulttimeout(timeout)
+        socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
+        return True
+    except socket.error:
+        return False
+
+
+# =========================
+# KLASIFIKASI PENYEBAB MASALAH
+# =========================
+def classify_issue(status_code=None, response_time=None, error_type=None, content_length=None):
+    """
+    Klasifikasi penyebab masalah untuk WARNING dan DOWN
+    
+    Returns:
+        tuple: (reason_code, reason_detail, tindakan_rekomendasi)
     """
     
-    # 1. Timeout (lemot/request terlalu lama)
+    # 0. NO INTERNET - JANGAN DIANGGAP DOWN SERVICE!
+    if error_type == 'NO_INTERNET':
+        return 'NO_INTERNET', 'Tidak ada koneksi internet - data tidak valid', 'Periksa koneksi jaringan'
+    
+    # 1. TIMEOUT (Server tidak merespon) -> DOWN
     if error_type == 'Timeout' or (response_time and response_time > 30):
-        return 'TIMEOUT', f'Request timeout after {response_time:.2f}s'
+        return 'TIMEOUT', f'Request timeout after {response_time:.2f}s', 'Cek server, restart jika perlu'
     
-    # 2. Connection Error (jaringan down total)
+    # 2. Connection Error (Server mati) -> DOWN
     if error_type == 'ConnectionError':
-        return 'CONNECTION_REFUSED', 'Koneksi ditolak atau jaringan down'
+        return 'CONNECTION_REFUSED', 'Koneksi ditolak - Server mati', 'Cek server, nyalakan jika perlu'
     
-    # 3. DNS Error
+    # 3. DNS Error -> DOWN
     if error_type == 'DNS_ERROR':
-        return 'DNS_ERROR', 'DNS resolution failed'
+        return 'DNS_ERROR', 'DNS resolution failed - Domain tidak ditemukan', 'Cek konfigurasi DNS domain'
     
-    # 4. SSL Error
+    # 4. SSL Error -> WARNING (server hidup tapi SSL bermasalah)
     if error_type == 'SSL_ERROR':
-        return 'SSL_ERROR', 'SSL certificate verification failed'
+        return 'SSL_ERROR', 'SSL certificate error - Sertifikat SSL bermasalah', 'Perbarui sertifikat SSL'
     
-    # 5. HTTP Status Code berdasarkan RFC 9110
+    # 5. Halaman Kosong -> WARNING
+    if content_length is not None and content_length < MIN_CONTENT_LENGTH:
+        return 'EMPTY_PAGE', f'Halaman kosong (hanya {content_length} karakter)', 'Cek aplikasi, mungkin error atau maintenance'
+    
+    # 6. Response Time Lambat -> WARNING
+    if response_time and response_time > SLOW_RESPONSE_THRESHOLD:
+        return 'SLOW_RESPONSE', f'Response time {response_time:.2f}s (lambat)', 'Optimasi performa server/aplikasi'
+    
+    # 7. HTTP Status Codes
     if status_code:
-        if status_code == 400:
-            return 'HTTP_400', 'Bad Request - Request tidak valid'
-        elif status_code == 401:
-            return 'HTTP_401', 'Unauthorized - Akses ditolak'
-        elif status_code == 403:
-            return 'HTTP_403', 'Forbidden - Akses dilarang'
-        elif status_code == 404:
-            return 'HTTP_404', 'Not Found - Halaman tidak ditemukan'
-        elif status_code == 500:
-            return 'HTTP_500', 'Internal Server Error - Error server'
-        elif status_code == 502:
-            return 'HTTP_502', 'Bad Gateway - Gateway error'
-        elif status_code == 503:
-            return 'HTTP_503', 'Service Unavailable - Layanan sibuk'
-        elif status_code == 504:
-            return 'HTTP_504', 'Gateway Timeout - Gateway timeout'
-        elif 500 <= status_code < 600:
-            return 'HTTP_500', f'Server Error ({status_code})'
-        elif 400 <= status_code < 500:
-            return f'HTTP_{status_code}', f'Client Error ({status_code})'
+        # REDIRECT -> WARNING
+        if status_code in [301, 302, 303, 307, 308]:
+            return 'REDIRECT', f'URL Redirect ({status_code})', 'Update URL di database dengan URL terbaru'
+        
+        # 401/403 -> UP (server hidup, perlu login) - BUKAN ERROR
+        if status_code in [401, 403]:
+            return None, None, None  # Bukan masalah, tetap UP
+        
+        # 404 -> DOWN
+        if status_code == 404:
+            return 'HTTP_404', 'Not Found - Halaman tidak ditemukan', 'Perbaiki link atau buat ulang halaman'
+        
+        # 400, 405, 406, 409, 410 -> DOWN
+        if status_code in [400, 405, 406, 409, 410]:
+            return f'HTTP_{status_code}', f'Client Error ({status_code})', 'Perbaiki request atau URL'
+        
+        # 5xx Server Errors -> DOWN
+        if 500 <= status_code < 600:
+            return f'HTTP_{status_code}', f'Server Error ({status_code})', 'Cek log error server, debug aplikasi'
     
-    return 'UNKNOWN_ERROR', 'Unknown error occurred'
+    return 'UNKNOWN', 'Unknown error occurred', 'Cek manual ke server'
 
 
 # =========================
-# CEK STATUS SERVICE (DENGAN DETEKSI LENGKAP)
+# CEK STATUS SERVICE (3 STATUS: UP, WARNING, DOWN)
 # =========================
 def check_service_status(service):
     """
-    Mengecek status service dengan deteksi:
-    - Response time (deteksi lemot)
-    - HTTP Status Code (klasifikasi error)
-    - Koneksi (down total)
+    Mengecek status service dengan 3 status:
+    - UP: Service berfungsi normal (200, 401, 403)
+    - WARNING: Ada masalah kecil (redirect, kosong, lambat, SSL error)
+    - DOWN: Service tidak berfungsi (404, 500, timeout, connection refused)
     """
+    
+    # ========== CEK INTERNET DULU! ==========
+    if not is_internet_available():
+        logger.warning(f"Internet TIDAK ADA! Melewati pengecekan {service.name}")
+        return None, 0, None, 'NO_INTERNET', 'Tidak ada koneksi internet - data tidak valid'
+    
     start_time = time.time()
     status_code = None
     response_time = None
     error_type = None
-    down_reason = None
-    down_detail = None
+    content_length = 0
     
     try:
         if service.service_type == 'HTTP':
-            # 🔥 HEAD REQUEST lebih ringan, tapi bisa juga GET
             response = requests.get(
                 service.url,
-                timeout=10,  # timeout 10 detik
-                verify=False,  # abaikan SSL untuk sementara
-                allow_redirects=True
+                timeout=REQUEST_TIMEOUT,
+                verify=False,
+                allow_redirects=True,
+                headers={'User-Agent': 'Monitoring-System/1.0'}
             )
             status_code = response.status_code
             response_time = time.time() - start_time
+            content_length = len(response.text.strip())
             
-            # DETEKSI LEMOT (response time > threshold)
-            if response_time > SLOW_RESPONSE_THRESHOLD:
-                return 'DEGRADED', response_time, status_code, 'TIMEOUT', f'Response slow: {response_time:.2f}s'
+            # REDIRECT -> WARNING
+            if status_code in [301, 302, 303, 307, 308]:
+                reason, detail, action = classify_issue(status_code=status_code)
+                return 'WARNING', response_time, status_code, reason, f"{detail} - Redirect ke: {response.url[:80]}"
             
-            # DETEKSI HTTP STATUS CODE
+            # 401/403 -> UP (server hidup, perlu login)
+            if status_code in [401, 403]:
+                return 'UP', response_time, status_code, None, f"Server hidup - perlu autentikasi ({status_code})"
+            
+            # 200 OK
             if 200 <= status_code < 300:
+                if content_length < MIN_CONTENT_LENGTH:
+                    reason, detail, action = classify_issue(content_length=content_length)
+                    return 'WARNING', response_time, status_code, reason, detail
+                
+                if response_time > SLOW_RESPONSE_THRESHOLD:
+                    reason, detail, action = classify_issue(response_time=response_time)
+                    return 'WARNING', response_time, status_code, reason, detail
+                
                 return 'UP', response_time, status_code, None, None
-            else:
-                reason, detail = classify_down_reason(status_code=status_code)
+            
+            # 4xx/5xx -> DOWN
+            if status_code >= 400:
+                reason, detail, action = classify_issue(status_code=status_code)
                 return 'DOWN', response_time, status_code, reason, detail
+            
+            return 'DOWN', response_time, status_code, 'UNKNOWN', f'Status tidak dikenal ({status_code})'
         
         elif service.service_type == 'PING':
-            # UNTUK PING
             import subprocess
             import platform
             
-            # Extract hostname from URL
             host = service.url.replace('https://', '').replace('http://', '').split('/')[0]
-            
             param = '-n' if platform.system().lower() == 'windows' else '-c'
             result = subprocess.run(
                 ['ping', param, '1', host],
                 capture_output=True,
-                timeout=5
+                timeout=REQUEST_TIMEOUT
             )
             response_time = time.time() - start_time
             
             if result.returncode == 0:
                 if response_time > SLOW_RESPONSE_THRESHOLD:
-                    return 'DEGRADED', response_time, None, 'TIMEOUT', f'Ping slow: {response_time:.2f}s'
+                    return 'WARNING', response_time, None, 'SLOW_RESPONSE', f'Ping lambat: {response_time:.2f}s'
                 return 'UP', response_time, None, None, None
             else:
-                return 'DOWN', response_time, None, 'NETWORK_UNREACHABLE', 'Ping failed - Host unreachable'
+                return 'DOWN', response_time, None, 'PING_FAILED', 'Host tidak merespon ping'
         
     except requests.exceptions.Timeout:
         response_time = time.time() - start_time
-        return 'DOWN', response_time, None, 'TIMEOUT', f'Request timeout after {response_time:.2f}s'
+        reason, detail, action = classify_issue(error_type='Timeout', response_time=response_time)
+        return 'DOWN', response_time, None, reason, detail
     
     except requests.exceptions.ConnectionError as e:
         response_time = time.time() - start_time
         error_msg = str(e)
         if 'Name or service not known' in error_msg or 'nodename nor servname' in error_msg:
-            return 'DOWN', response_time, None, 'DNS_ERROR', 'DNS resolution failed'
+            return 'DOWN', response_time, None, 'DNS_ERROR', 'DNS resolution failed - Domain tidak ditemukan'
         elif 'Connection refused' in error_msg:
-            return 'DOWN', response_time, None, 'CONNECTION_REFUSED', 'Koneksi ditolak'
+            return 'DOWN', response_time, None, 'CONNECTION_REFUSED', 'Koneksi ditolak - Server mati'
         else:
             return 'DOWN', response_time, None, 'NETWORK_UNREACHABLE', error_msg[:200]
     
     except requests.exceptions.SSLError:
         response_time = time.time() - start_time
-        return 'DOWN', response_time, None, 'SSL_ERROR', 'SSL certificate error'
+        reason, detail, action = classify_issue(error_type='SSL_ERROR')
+        return 'WARNING', response_time, None, reason, detail
     
     except Exception as e:
         response_time = time.time() - start_time
         return 'DOWN', response_time, None, 'UNKNOWN_ERROR', str(e)[:200]
+    
+    return 'DOWN', 0, None, 'UNKNOWN', 'Unknown error'
 
 
 # =========================
@@ -179,8 +246,9 @@ def send_whatsapp(phone_number, message):
                 "message": message
             },
             headers={
-                "Authorization": settings.FONTE_TOKEN
-            }
+                "Authorization": FONTE_TOKEN
+            },
+            timeout=10
         )
         return response.status_code == 200
     except Exception as e:
@@ -211,19 +279,16 @@ def send_email(email_address, subject, message):
 # KIRIM NOTIFIKASI MULTI-CHANNEL
 # =========================
 def send_notification(contact, title, message):
-    """
-    Kirim notifikasi ke contact berdasarkan channel yang dipilih
-    """
+    """Kirim notifikasi ke contact berdasarkan channel yang dipilih"""
     results = []
     
     if contact.notification_channel in ['WHATSAPP', 'BOTH']:
         whatsapp_success = send_whatsapp(contact.phone_number, f"{title}\n\n{message}")
         results.append(('WHATSAPP', whatsapp_success))
         
-        # Simpan ke NotificationLog
         NotificationLog.objects.create(
             channel='WHATSAPP',
-            notification_type=title.split(' - ')[0] if ' - ' in title else 'SERVICE_DOWN',
+            notification_type=title.split(' - ')[0] if ' - ' in title else 'SERVICE_ALERT',
             recipient=contact.phone_number,
             title=title,
             message=message,
@@ -237,7 +302,7 @@ def send_notification(contact, title, message):
             
             NotificationLog.objects.create(
                 channel='EMAIL',
-                notification_type=title.split(' - ')[0] if ' - ' in title else 'SERVICE_DOWN',
+                notification_type=title.split(' - ')[0] if ' - ' in title else 'SERVICE_ALERT',
                 recipient=contact.email,
                 title=title,
                 message=message,
@@ -251,52 +316,47 @@ def send_notification(contact, title, message):
 # KIRIM ALERT (DENGAN ANTI SPAM)
 # =========================
 def send_alert(service, status, status_code=None, response_time=None, down_reason=None, down_detail=None):
-    """
-    Kirim alert ke semua contact yang terhubung dengan service.
-    Dilengkapi anti spam berdasarkan cooldown.
-    """
+    """Kirim alert ke semua contact yang terhubung dengan service"""
+    
+    if not is_internet_available():
+        logger.info(f"Internet tidak ada! Melewati pengiriman alert untuk {service.name}")
+        return
+    
     now = timezone.now().strftime("%d-%m-%Y %H:%M:%S")
     
-    # KIRIM NOTIFIKASI (ANTI SPAM)
     if not service.needs_notification():
         logger.info(f"Notification cooldown active for service {service.name}")
         return
     
-    # UPDATE last_notified
     service.last_notified = timezone.now()
     service.save(update_fields=['last_notified'])
     
-    # Ambil semua contact yang terhubung dengan service ini
     service_contacts = service.servicecontact_set.all()
     
     if not service_contacts.exists():
         logger.warning(f"No contacts found for service {service.name}")
         return
     
-    # PESAN BERDASARKAN STATUS
     if status == 'DOWN':
-        # Peta readable reason
         reason_display = {
-            'TIMEOUT': '⏱️ Request Timeout (Server tidak merespon)',
-            'CONNECTION_REFUSED': '🔌 Koneksi Ditolak',
+            'TIMEOUT': '⏱️ Request Timeout - Server tidak merespon',
+            'CONNECTION_REFUSED': '🔌 Koneksi Ditolak - Server mati',
             'NETWORK_UNREACHABLE': '🌐 Jaringan Down Total',
             'DNS_ERROR': '🌐 DNS Resolution Failed',
-            'SSL_ERROR': '🔒 SSL Certificate Error',
-            'HTTP_403': '🚫 Forbidden (403) - Akses dilarang',
             'HTTP_404': '🔍 Not Found (404) - Halaman tidak ditemukan',
-            'HTTP_502': '⚙️ Bad Gateway (502) - Gateway error',
+            'HTTP_500': '💥 Internal Server Error (500)',
+            'HTTP_502': '⚙️ Bad Gateway (502)',
             'HTTP_503': '⚙️ Service Unavailable (503)',
             'HTTP_504': '⏱️ Gateway Timeout (504)',
-            'HTTP_400': '❌ Bad Request (400)',
-            'HTTP_401': '🔐 Unauthorized (401)',
+            'PING_FAILED': '📡 Host tidak merespon ping',
         }
         
         reason_text = reason_display.get(down_reason, down_reason or 'Unknown Error')
         
-        title = f"🚨 ALERT - {service.name} DOWN"
+        title = f"🔴 ALERT - {service.name} DOWN"
         message = f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️  SERVICE DOWN ALERT
+🔴 SERVICE DOWN ALERT
 ━━━━━━━━━━━━━━━━━━━━━━━━
 
 📌 Service : {service.name}
@@ -304,9 +364,9 @@ def send_alert(service, status, status_code=None, response_time=None, down_reaso
 📋 Tipe : {service.service_type}
 
 📊 Detail Masalah:
-├ Status : DOWN
+├ Status : DOWN - Tidak Berfungsi
 ├ HTTP Code : {status_code or 'N/A'}
-├ Response Time : {response_time:.2f}s jika ada)
+├ Response Time : {response_time:.2f}s
 └ Penyebab : {reason_text}
 
 📝 Detail : {down_detail or 'Tidak tersedia'}
@@ -314,53 +374,55 @@ def send_alert(service, status, status_code=None, response_time=None, down_reaso
 ⏰ Waktu : {now}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
-✅ Aksi: Tim akan melakukan pengecekan
+🔧 TINDAKAN: Perbaiki segera!
 ━━━━━━━━━━━━━━━━━━━━━━━━
 """
     
-    elif status == 'DEGRADED':
-        title = f"⚠️ ALERT - {service.name} DEGRADED (Lemot)"
+    elif status == 'WARNING':
+        title = f"🟠 ALERT - {service.name} WARNING"
         message = f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️  SERVICE DEGRADED ALERT
+🟠 SERVICE WARNING
 ━━━━━━━━━━━━━━━━━━━━━━━━
 
 📌 Service : {service.name}
 🔗 URL : {service.url}
 
 📊 Detail:
-├ Status : DEGRADED (Lambat)
-├ Response Time : {response_time:.2f} detik
-├ Threshold Normal : < 5 detik
-└ Rekomendasi : Periksa jaringan server
+├ Status : WARNING - Perlu Perhatian
+├ HTTP Code : {status_code or 'N/A'}
+├ Response Time : {response_time:.2f}s
+└ Penyebab : {down_detail or down_reason or 'Ada masalah kecil'}
 
 ⏰ Waktu : {now}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
+🔧 TINDAKAN: Periksa dan perbaiki
+━━━━━━━━━━━━━━━━━━━━━━━━
 """
     
-    else:  # UP / RECOVER
-        title = f"✅ RECOVERY - {service.name} Kembali Normal"
+    else:
+        title = f"🟢 RECOVERY - {service.name} Kembali Normal"
         message = f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━
-✅  SERVICE RECOVERY
+🟢 SERVICE RECOVERY
 ━━━━━━━━━━━━━━━━━━━━━━━━
 
 📌 Service : {service.name}
 🔗 URL : {service.url}
 
 📊 Status:
-├ Status : UP (Normal)
+├ Status : UP - Normal
 ├ HTTP Code : {status_code or 'N/A'}
-├ Response Time : {response_time:.2f}s
-└ Kondisi : Layanan telah pulih
+└ Response Time : {response_time:.2f}s
 
 ⏰ Waktu : {now}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Layanan telah pulih
+━━━━━━━━━━━━━━━━━━━━━━━━
 """
     
-    # KIRIM KE SEMUA CONTACT
     for sc in service_contacts:
         contact = sc.contact
         if contact.is_active:
@@ -369,13 +431,17 @@ def send_alert(service, status, status_code=None, response_time=None, down_reaso
 
 
 # =========================
-# KIRIM ALERT DEVICE OFFLINE (ESP32 MATI)
+# KIRIM ALERT DEVICE OFFLINE
 # =========================
 def send_device_alert(device, is_offline=True):
     """Kirim alert jika ESP32 mati/offline"""
+    
+    if not is_internet_available():
+        logger.info(f"Internet tidak ada! Melewati pengiriman alert device untuk {device.name}")
+        return
+    
     now = timezone.now().strftime("%d-%m-%Y %H:%M:%S")
     
-    # Ambil contact yang terhubung dengan device
     device_contacts = device.devicecontact_set.all()
     
     if not device_contacts.exists():
@@ -383,10 +449,10 @@ def send_device_alert(device, is_offline=True):
         return
     
     if is_offline:
-        title = f"🔌 ALERT - Device {device.name} OFFLINE"
+        title = f"🔴 ALERT - Device {device.name} OFFLINE"
         message = f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━
-🔌  DEVICE OFFLINE ALERT
+🔴 DEVICE OFFLINE ALERT
 ━━━━━━━━━━━━━━━━━━━━━━━━
 
 📟 Device : {device.name}
@@ -395,18 +461,19 @@ def send_device_alert(device, is_offline=True):
 📊 Detail:
 ├ Status : OFFLINE
 ├ Last Data : {device.last_seen.strftime('%d-%m-%Y %H:%M:%S') if device.last_seen else 'Tidak pernah'}
-├ Power Backup : {'Ada' if device.has_power_backup else 'Tidak Ada'}
-└ Rekomendasi : Cek koneksi dan daya
+└ Power Backup : {'Ada' if device.has_power_backup else 'Tidak Ada'}
 
 ⏰ Waktu : {now}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
+🔧 TINDAKAN: Cek koneksi dan daya
+━━━━━━━━━━━━━━━━━━━━━━━━
 """
     else:
-        title = f"✅ Device {device.name} ONLINE"
+        title = f"🟢 Device {device.name} ONLINE"
         message = f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━
-✅  DEVICE ONLINE
+🟢 DEVICE ONLINE
 ━━━━━━━━━━━━━━━━━━━━━━━━
 
 📟 Device : {device.name}
@@ -430,11 +497,16 @@ def send_device_alert(device, is_offline=True):
 # UPDATE UPTIME PERCENTAGE
 # =========================
 def update_uptime_percentage(service):
-    """Hitung uptime percentage untuk 30 hari terakhir"""
+    """Hitung uptime percentage untuk 30 hari terakhir - EXCLUDE data saat internet mati"""
     from datetime import timedelta
     
     thirty_days_ago = timezone.now() - timedelta(days=30)
-    logs = service.log_set.filter(timestamp__gte=thirty_days_ago)
+    
+    logs = service.log_set.filter(
+        timestamp__gte=thirty_days_ago
+    ).exclude(
+        down_reason='NO_INTERNET'
+    )
     
     total_checks = logs.count()
     if total_checks == 0:
@@ -446,22 +518,19 @@ def update_uptime_percentage(service):
     service.uptime_percentage = round(uptime, 2)
     service.save(update_fields=['uptime_percentage'])
 
-# utils.py - Tambahkan fungsi ini jika belum ada
 
+# =========================
+# CEK STATUS DEVICE (ESP32)
+# =========================
 def check_device_statuses():
     """Memeriksa status semua device (ESP32)"""
     from .models import Device
-    from django.utils import timezone
     from datetime import timedelta
-    import logging
-    
-    logger = logging.getLogger(__name__)
     
     devices = Device.objects.all()
-    offline_threshold = timezone.now() - timedelta(minutes=5)  # 5 menit offline
+    offline_threshold = timezone.now() - timedelta(minutes=5)
     
     for device in devices:
-        # Cek apakah device masih online
         last_log = device.powerlog_set.order_by('-timestamp').first()
         
         if last_log:
@@ -472,10 +541,8 @@ def check_device_statuses():
                 if device.status != 'OFFLINE':
                     device.status = 'OFFLINE'
                     device.save(update_fields=['status'])
-                    logger.warning(f"Device {device.name} is OFFLINE (no data for >5 minutes)")
-                    # Kirim notifikasi device offline jika perlu
+                    logger.warning(f"Device {device.name} is OFFLINE")
                     try:
-                        from .utils import send_device_alert
                         send_device_alert(device, is_offline=True)
                     except ImportError:
                         pass
@@ -483,42 +550,51 @@ def check_device_statuses():
                 if device.status != 'ONLINE':
                     device.status = 'ONLINE'
                     device.save(update_fields=['status'])
-                    logger.info(f"Device {device.name} is ONLINE again")
+                    logger.info(f"Device {device.name} is ONLINE")
                     try:
-                        from .utils import send_device_alert
                         send_device_alert(device, is_offline=False)
                     except ImportError:
                         pass
 
 
+# =========================
+# CEK SEMUA SERVICE (UNTUK BACKGROUND THREAD) - TIDAK BUAT LOG JIKA STATUS SAMA
+# =========================
 def check_all_services():
-    """Memeriksa semua service dan update status"""
+    """
+    Memeriksa semua service dan update status (dijalankan setiap 5 menit)
+    - HANYA buat log jika status berubah
+    - last_checked SELALU update
+    - Notifikasi HANYA jika status berubah
+    """
     from .models import Service, Log
-    from django.utils import timezone
-    import logging
     
-    logger = logging.getLogger(__name__)
+    if not is_internet_available():
+        logger.warning(f"[{timezone.now()}] ⚠️ TIDAK ADA KONEKSI INTERNET! Melewati pengecekan service.")
+        return
     
     services = Service.objects.all()
+    logger.info(f"[{timezone.now()}] Internet OK, mulai pengecekan {services.count()} service...")
     
     for service in services:
         try:
             status, response_time, status_code, down_reason, down_detail = check_service_status(service)
             
-            # Update last_checked
+            # Update last_checked (SELALU update)
             service.last_checked = timezone.now()
             service.last_response_time = response_time
             service.last_status_code = status_code
             
-            # Cek apakah status berubah
+            # Cek apakah status BERUBAH
             old_status = service.last_status
             
             if status != old_status:
+                # ========== STATUS BERUBAH! ==========
                 service.last_status = status
                 service.last_down_reason = down_reason
                 service.last_down_detail = down_detail
                 
-                # Simpan ke log
+                # BUAT LOG BARU (HANYA DISINI!)
                 Log.objects.create(
                     service=service,
                     status=status,
@@ -528,35 +604,28 @@ def check_all_services():
                     message=down_detail
                 )
                 
-                # Kirim notifikasi jika DOWN atau DEGRADED
-                if status in ['DOWN', 'DEGRADED']:
+                # Kirim notifikasi jika WARNING atau DOWN
+                if status in ['WARNING', 'DOWN']:
                     send_alert(service, status, status_code, response_time, down_reason, down_detail)
-                elif status == 'UP' and old_status in ['DOWN', 'DEGRADED']:
-                    # Kirim notifikasi recovery
+                elif status == 'UP' and old_status in ['WARNING', 'DOWN']:
                     send_alert(service, status, status_code, response_time, down_reason, down_detail)
                 
-                logger.info(f"Service {service.name} status changed: {old_status} -> {status}")
+                logger.info(f"[AUTO] ✅ {service.name}: {old_status} → {status} (log dibuat)")
             else:
-                # Status tidak berubah, tetap update log jika perlu (opsional)
-                if status == 'DOWN' or status == 'DEGRADED':
-                    Log.objects.create(
-                        service=service,
-                        status=status,
-                        status_code=status_code,
-                        response_time=response_time,
-                        down_reason=down_reason,
-                        message=down_detail
-                    )
+                # ========== STATUS TIDAK BERUBAH! ==========
+                # TIDAK buat log, TIDAK kirim notifikasi
+                logger.info(f"[AUTO] ⏭️ {service.name}: status tetap {status} (tidak buat log)")
             
             # Update uptime percentage
             update_uptime_percentage(service)
             
+            # SELALU simpan (last_checked tetap tersimpan)
             service.save()
             
         except Exception as e:
             logger.error(f"Error checking service {service.name}: {e}")
             
-            # Log error
+            # Log error (bukan perubahan status)
             Log.objects.create(
                 service=service,
                 status='UNKNOWN',

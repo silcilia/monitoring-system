@@ -27,6 +27,13 @@ urlpatterns = [
     path('api/monitoring/start/', StartMonitoringAPI.as_view(), name='api_start_monitoring'),
     path('api/services/<int:pk>/check/', csrf_exempt(ManualCheckAPI.as_view()), name='api_manual_check'),
     path('api/services/<int:pk>/logs/', ServiceLogAPI.as_view(), name='api_service_logs'),
+    
+    # ======================
+    # MONITORING LOGS (API)
+    # ======================
+    path('api/monitoring-logs/', csrf_exempt(MonitoringLogsAPI.as_view()), name='api_monitoring_logs'),
+    path('api/monitoring-logs/<int:pk>/', csrf_exempt(MonitoringLogDetailAPI.as_view()), name='api_monitoring_log_detail'),
+
     # ======================
     # CONTACTS (WEB)
     # ======================

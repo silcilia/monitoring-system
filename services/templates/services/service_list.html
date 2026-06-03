@@ -3,6 +3,11 @@
 {% block content %}
 
 <style>
+    /* ================= RESPONSIVE STYLES ================= */
+    * {
+        box-sizing: border-box;
+    }
+
     .search-box {
         display: flex;
         align-items: center;
@@ -20,7 +25,8 @@
     .search-box input {
         border: none;
         outline: none;
-        width: 250px;
+        width: 100%;
+        max-width: 250px;
         font-size: 14px;
     }
     
@@ -33,12 +39,43 @@
         gap: 15px;
     }
     
+    .per-page-selector {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 5px 12px;
+    }
+    
+    .per-page-selector label {
+        font-size: 13px;
+        color: #475569;
+        font-weight: 500;
+    }
+    
+    .per-page-selector select {
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 5px 8px;
+        font-size: 13px;
+        background: #f8fafc;
+        cursor: pointer;
+        outline: none;
+    }
+    
+    .per-page-selector select:hover {
+        background: #f1f5f9;
+    }
+    
     .action-buttons {
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
     }
     
+    /* ========== 3 STATUS BADGE ========== */
     .status-badge {
         display: inline-flex;
         align-items: center;
@@ -54,14 +91,14 @@
         color: #065f46;
     }
     
+    .status-warning {
+        background: #fed7aa;
+        color: #92400e;
+    }
+    
     .status-down {
         background: #fee2e2;
         color: #991b1b;
-    }
-    
-    .status-degraded {
-        background: #fed7aa;
-        color: #92400e;
     }
     
     .status-unknown {
@@ -89,11 +126,42 @@
         color: #92400e;
     }
     
-    /* Detail status styling */
+    .uptime-container {
+        min-width: 100px;
+    }
+    
+    .percent-text-small {
+        font-size: 1rem;
+        font-weight: 800;
+        text-align: center;
+        margin-bottom: 5px;
+        color: #1e3a5f;
+    }
+    
+    .progress-bar-small {
+        background: #e5e7eb;
+        height: 18px;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .progress-fill-small {
+        height: 100%;
+        width: 0%;
+        color: #fff;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 6px;
+        font-size: 9px;
+        transition: all 0.8s ease;
+    }
+    
     .detail-info {
-        font-size: 11px;
+        font-size: 10px;
         color: #64748b;
-        margin-top: 4px;
+        margin-top: 6px;
         display: flex;
         flex-direction: column;
         gap: 2px;
@@ -104,21 +172,71 @@
         font-weight: 600;
     }
     
-    .detail-info .response-time {
-        font-family: monospace;
-    }
-    
     .detail-info .down-reason {
         color: #991b1b;
     }
     
-    /* Tooltip */
-    .detail-tooltip {
-        cursor: help;
-        border-bottom: 1px dashed #64748b;
+    .detail-info .warning-reason {
+        color: #92400e;
     }
     
-    /* Manual check button */
+    .status-desc {
+        font-size: 10px;
+        display: block;
+        margin-top: 3px;
+    }
+    
+    .internet-warning {
+        background: #fef3c7;
+        color: #92400e;
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 9px;
+        margin-bottom: 4px;
+    }
+    
+    .auto-refresh-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #f1f5f9;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        color: #475569;
+    }
+    
+    .auto-refresh-indicator i {
+        color: #10b981;
+    }
+    
+    .internet-banner {
+        background: #fee2e2;
+        color: #991b1b;
+        padding: 12px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-left: 4px solid #ef4444;
+    }
+    
+    .internet-banner i {
+        font-size: 18px;
+    }
+    
+    .internet-banner button {
+        margin-left: auto;
+        background: #991b1b;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    
     .btn-check {
         background: #3b82f6;
         color: white;
@@ -131,7 +249,6 @@
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        margin-right: 5px;
     }
     
     .btn-check:hover {
@@ -144,11 +261,42 @@
         cursor: not-allowed;
     }
     
-    /* Last checked time */
-    .last-checked {
-        font-size: 10px;
-        color: #94a3b8;
-        margin-top: 4px;
+    .btn-edit {
+        background: #f59e0b;
+        color: white;
+        padding: 4px 8px;
+        border: none;
+        border-radius: 6px;
+        font-size: 11px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    .btn-edit:hover {
+        background: #d97706;
+        transform: translateY(-1px);
+    }
+    
+    .btn-delete {
+        background: #ef4444;
+        color: white;
+        padding: 4px 8px;
+        border: none;
+        border-radius: 6px;
+        font-size: 11px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    .btn-delete:hover {
+        background: #dc2626;
+        transform: translateY(-1px);
     }
     
     .empty-state {
@@ -179,15 +327,14 @@
         100% { transform: rotate(360deg); }
     }
     
-    /* Pagination */
     .pagination-wrapper {
         display: flex;
         justify-content: center;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         margin-top: 20px;
         flex-wrap: wrap;
-        padding: 15px;
+        padding: 12px;
         background: #f8fafc;
         border-radius: 12px;
     }
@@ -195,12 +342,12 @@
     .page-btn {
         background: white;
         border: 1px solid #e2e8f0;
-        padding: 8px 14px;
-        border-radius: 8px;
+        padding: 6px 12px;
+        border-radius: 6px;
         cursor: pointer;
         transition: all 0.3s ease;
         color: #1e293b;
-        font-size: 13px;
+        font-size: 12px;
     }
     
     .page-btn:hover:not(:disabled) {
@@ -226,15 +373,14 @@
     }
     
     .page-info {
-        margin-left: 12px;
-        padding: 6px 12px;
+        margin-left: 10px;
+        padding: 4px 10px;
         background: #e2e8f0;
-        border-radius: 8px;
-        font-size: 12px;
+        border-radius: 6px;
+        font-size: 11px;
         color: #475569;
     }
     
-    /* Modal Form */
     .modal-box form {
         text-align: left;
     }
@@ -283,6 +429,26 @@
         background: #e2e8f0;
     }
     
+    .btn-primary {
+        background: #1e3a5f;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .btn-primary:hover {
+        background: #0f2b4f;
+        transform: translateY(-2px);
+    }
+    
     .btn-danger {
         background: #ef4444;
         color: white;
@@ -292,12 +458,6 @@
         background: #dc2626;
     }
     
-    .btn-check-loading {
-        opacity: 0.6;
-        pointer-events: none;
-    }
-    
-    /* Header content */
     .header-content {
         background: white;
         border-radius: 16px;
@@ -315,6 +475,7 @@
         font-size: 24px;
         font-weight: 700;
         color: #1e293b;
+        flex-wrap: wrap;
     }
     
     .header-content h2 i {
@@ -337,15 +498,15 @@
         display: flex;
         align-items: center;
         gap: 8px;
+        flex-wrap: wrap;
     }
     
-    /* Status legend */
     .status-legend {
         display: flex;
         gap: 15px;
         margin-bottom: 15px;
         flex-wrap: wrap;
-        font-size: 12px;
+        font-size: 11px;
     }
     
     .status-legend span {
@@ -355,16 +516,222 @@
     }
     
     .status-legend .dot {
-        width: 10px;
-        height: 10px;
+        width: 8px;
+        height: 8px;
         border-radius: 50%;
         display: inline-block;
     }
     
     .dot-up { background: #10b981; }
+    .dot-warning { background: #f59e0b; }
     .dot-down { background: #ef4444; }
-    .dot-degraded { background: #f59e0b; }
     .dot-unknown { background: #64748b; }
+    
+    .card {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        border: 1px solid #e2e8f0;
+    }
+    
+    @media (max-width: 768px) {
+        .table-responsive {
+            overflow-x: visible;
+        }
+        
+        .modern-table thead {
+            display: none;
+        }
+        
+        .modern-table,
+        .modern-table tbody,
+        .modern-table tr,
+        .modern-table td {
+            display: block;
+            width: 100%;
+        }
+        
+        .modern-table tr {
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 15px;
+            background: white;
+            position: relative;
+        }
+        
+        .modern-table td {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 0;
+            border: none;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        .modern-table td:last-child {
+            border-bottom: none;
+        }
+        
+        .modern-table td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: #1e293b;
+            min-width: 100px;
+            font-size: 12px;
+        }
+        
+        .modern-table td[data-label="Aksi"] {
+            flex-direction: column;
+        }
+        
+        .modern-table td[data-label="Aksi"]::before {
+            margin-bottom: 5px;
+        }
+        
+        .action-buttons {
+            width: 100%;
+            justify-content: flex-start;
+        }
+        
+        .uptime-container {
+            width: 100%;
+        }
+        
+        .header-content h2 {
+            font-size: 1.2rem;
+        }
+        
+        .btn-primary {
+            padding: 8px 16px;
+            font-size: 12px;
+        }
+        
+        .search-box {
+            width: 100%;
+        }
+        
+        .search-box input {
+            max-width: 100%;
+        }
+        
+        .table-toolbar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .per-page-selector {
+            justify-content: space-between;
+        }
+        
+        .pagination-wrapper {
+            gap: 4px;
+        }
+        
+        .page-btn {
+            padding: 4px 8px;
+            font-size: 11px;
+        }
+        
+        .page-info {
+            font-size: 10px;
+        }
+    }
+    
+    @media (min-width: 769px) and (max-width: 1024px) {
+        .modern-table th,
+        .modern-table td {
+            padding: 8px;
+            font-size: 11px;
+        }
+        
+        .btn-check, .btn-edit, .btn-delete {
+            padding: 3px 6px;
+            font-size: 9px;
+        }
+        
+        .percent-text-small {
+            font-size: 0.8rem;
+        }
+        
+        .progress-bar-small {
+            height: 14px;
+        }
+    }
+    
+    .modern-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .modern-table th {
+        text-align: left;
+        padding: 12px;
+        background: #f8fafc;
+        border-bottom: 2px solid #e2e8f0;
+        color: #475569;
+        font-size: 13px;
+    }
+    
+    .modern-table td {
+        padding: 12px;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: top;
+    }
+    
+    .table-responsive {
+        overflow-x: visible;
+    }
+    
+    .url-code {
+        font-family: monospace;
+        font-size: 0.75rem;
+        word-break: break-all;
+        white-space: normal;
+        display: inline-block;
+    }
+    
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+    }
+    
+    .modal-box {
+        background: white;
+        border-radius: 20px;
+        padding: 25px;
+        width: 90%;
+        max-width: 450px;
+        animation: slideUp 0.3s ease;
+    }
+    
+    .modal-box h3 {
+        margin-bottom: 20px;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    @keyframes slideUp {
+        from {
+            transform: translateY(50px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
 </style>
 
 <div class="page-header">
@@ -376,13 +743,13 @@
         </h2>
         <p>
             <i class="fas fa-info-circle"></i>
-            Kelola semua service monitoring
+            Kelola semua service monitoring - Setiap service memiliki uptime rate masing-masing
         </p>
         <div class="status-legend">
-            <span><span class="dot dot-up"></span> UP - Normal</span>
-            <span><span class="dot dot-down"></span> DOWN - Gagal total</span>
-            <span><span class="dot dot-degraded"></span> DEGRADED - Lemot/lambat</span>
-            <span><span class="dot dot-unknown"></span> UNKNOWN - Belum dicek</span>
+            <span><span class="dot dot-up"></span> UP - Normal (Berfungsi)</span>
+            <span><span class="dot dot-warning"></span> WARNING - Perlu Perhatian</span>
+            <span><span class="dot dot-down"></span> DOWN - Tidak Berfungsi</span>
+            <span><span class="dot dot-unknown"></span> UNKNOWN (Belum Dicek)</span>
         </div>
     </div>
 </div>
@@ -392,29 +759,48 @@
         <i class="fas fa-plus"></i> Tambah Service
     </button>
     
-    <div class="search-box">
-        <i class="fas fa-search"></i>
-        <input type="text" id="searchInput" placeholder="Cari service..." onkeyup="searchServices()">
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+        <div class="auto-refresh-indicator">
+            <i class="fas fa-clock"></i>
+            <span>Update: setiap 5 menit</span>
+        </div>
+        
+        <div class="per-page-selector">
+            <label><i class="fas fa-eye"></i> Tampilkan:</label>
+            <select id="perPageSelect">
+                <option value="10">10 data</option>
+                <option value="20" selected>20 data</option>
+                <option value="30">30 data</option>
+                <option value="50">50 data</option>
+            </select>
+        </div>
+        
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" placeholder="Cari service..." onkeyup="searchServices()">
+        </div>
     </div>
 </div>
 
 <div class="card">
+    <div id="internetBannerContainer"></div>
     <div class="table-responsive">
         <table class="modern-table">
             <thead>
                 <tr>
-                    <th><i class="fas fa-tag"></i> Nama & Detail</th>
-                    <th><i class="fas fa-link"></i> URL</th>
-                    <th><i class="fas fa-code-branch"></i> Tipe</th>
-                    <th><i class="fas fa-circle"></i> Status</th>
-                    <th><i class="fas fa-cog"></i> Aksi</th>
+                    <th>Nama & Detail</th>
+                    <th>URL</th>
+                    <th>Tipe</th>
+                    <th>Status</th>
+                    <th>Uptime Rate</th>
+                    <th>Aksi</th>
                 </tr>
             </thead>
             <tbody id="serviceTableBody">
                 <tr>
-                    <td colspan="5" class="loading-state">
-                        <i class="fas fa-spinner fa-spin"></i> Loading...
-                    </td>
+                    <td colspan="6" class="loading-state">
+                        <i class="fas fa-spinner fa-spin"></i> Memuat data...
+                    </td
                 </tr>
             </tbody>
         </table>
@@ -422,7 +808,7 @@
     <div id="pagination"></div>
 </div>
 
-<!-- MODAL CREATE/EDIT SERVICE (POPUP) -->
+<!-- MODAL CREATE/EDIT SERVICE -->
 <div id="serviceModal" class="modal-overlay">
     <div class="modal-box">
         <h3 id="modalTitle">
@@ -431,16 +817,12 @@
         
         <form id="serviceForm" onsubmit="return false;">
             <input type="hidden" id="serviceId">
-            
             <input type="text" id="name" placeholder="Nama Service" required>
-            
             <input type="text" id="url" placeholder="URL / IP Address" required>
-            
             <select id="service_type">
                 <option value="HTTP">🌐 HTTP / HTTPS</option>
                 <option value="PING">📡 PING</option>
             </select>
-            
             <div class="modal-buttons">
                 <button type="button" class="btn-primary" onclick="saveService()">
                     <i class="fas fa-save"></i> Simpan
@@ -478,10 +860,115 @@
     let currentEditId = null;
     let currentDeleteId = null;
     let currentPage = 1;
-    let itemsPerPage = 10;
+    let itemsPerPage = 20;
     let totalItems = 0;
+    let totalPages = 0;
     let allServices = [];
     let checkingServiceId = null;
+    
+    // Untuk menyimpan posisi scroll dan service yang sedang dicek
+    let scrollPosition = 0;
+    let lastCheckedServiceId = null;
+    
+    // Auto refresh timer (5 menit)
+    let autoRefreshTimer = null;
+    
+    // ===============================
+    // CEK KONEKSI INTERNET
+    // ===============================
+    let isInternetConnected = true;
+    let lastInternetCheck = 0;
+    
+    async function checkInternetConnection() {
+        const now = Date.now();
+        if (now - lastInternetCheck < 10000) return isInternetConnected;
+        lastInternetCheck = now;
+        
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            
+            await fetch('https://8.8.8.8', {
+                method: 'HEAD',
+                mode: 'no-cors',
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (!isInternetConnected) {
+                isInternetConnected = true;
+                console.log("[Internet] Koneksi pulih!");
+                showNotification('✅ Koneksi internet pulih! Memperbarui data...', 'success');
+                removeInternetBanner();
+                loadServices();
+            }
+            isInternetConnected = true;
+            return true;
+            
+        } catch (error) {
+            if (isInternetConnected) {
+                isInternetConnected = false;
+                console.log("[Internet] Koneksi terputus!");
+                showNotification('⚠️ Koneksi internet terputus! Menampilkan data terakhir.', 'error');
+                showInternetBanner();
+            }
+            isInternetConnected = false;
+            return false;
+        }
+    }
+    
+    function showInternetBanner() {
+        const container = document.getElementById('internetBannerContainer');
+        if (!container) return;
+        if (document.getElementById('internetBanner')) return;
+        
+        const banner = document.createElement('div');
+        banner.id = 'internetBanner';
+        banner.className = 'internet-banner';
+        banner.innerHTML = `
+            <i class="fas fa-wifi-slash"></i>
+            <span><strong>⚠️ TIDAK ADA KONEKSI INTERNET!</strong> Menampilkan data terakhir. Status akan otomatis update saat internet kembali.</span>
+            <button onclick="manualRefreshAll()"><i class="fas fa-sync-alt"></i> Coba Lagi</button>
+        `;
+        container.appendChild(banner);
+    }
+    
+    function removeInternetBanner() {
+        const banner = document.getElementById('internetBanner');
+        if (banner) banner.remove();
+    }
+    
+    async function manualRefreshAll() {
+        showNotification('🔄 Memeriksa koneksi dan memperbarui data...', 'info');
+        const isConnected = await checkInternetConnection();
+        if (isConnected) {
+            loadServices();
+        } else {
+            showNotification('⚠️ Masih tidak ada koneksi internet!', 'error');
+        }
+    }
+    
+    // ===============================
+    // AUTO REFRESH (5 MENIT)
+    // ===============================
+    function startAutoRefresh() {
+        if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+        
+        autoRefreshTimer = setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                console.log("[Auto-Refresh] Memperbarui data...", new Date().toLocaleTimeString());
+                loadServices();
+            }
+        }, 300000); // 300 detik = 5 menit
+    }
+    
+    function stopAutoRefresh() {
+        if (autoRefreshTimer) {
+            clearInterval(autoRefreshTimer);
+            autoRefreshTimer = null;
+        }
+    }
     
     // ===============================
     // CSRF TOKEN HELPER
@@ -507,63 +994,138 @@
     function getStatusBadgeClass(status) {
         switch(status) {
             case 'UP': return 'status-up';
+            case 'WARNING': return 'status-warning';
             case 'DOWN': return 'status-down';
-            case 'DEGRADED': return 'status-degraded';
             default: return 'status-unknown';
         }
     }
     
-    // ===============================
-    // GET STATUS TEXT
-    // ===============================
     function getStatusText(status) {
         switch(status) {
-            case 'UP': return 'UP (Normal)';
-            case 'DOWN': return 'DOWN (Gagal)';
-            case 'DEGRADED': return 'DEGRADED (Lemot)';
+            case 'UP': return 'UP - Normal';
+            case 'WARNING': return 'WARNING - Perlu Perhatian';
+            case 'DOWN': return 'DOWN - Tidak Berfungsi';
             default: return 'UNKNOWN';
         }
     }
     
-    // ===============================
-    // GET READABLE DOWN REASON
-    // ===============================
-    function getReadableReason(reason, detail) {
-        const reasonMap = {
-            'TIMEOUT': '⏱️ Timeout - Server tidak merespon',
-            'CONNECTION_REFUSED': '🔌 Koneksi ditolak',
-            'NETWORK_UNREACHABLE': '🌐 Jaringan down total',
-            'DNS_ERROR': '🌐 DNS gagal resolve',
-            'SSL_ERROR': '🔒 SSL Certificate error',
-            'HTTP_403': '🚫 Forbidden (403) - Akses ditolak',
-            'HTTP_404': '🔍 Not Found (404) - Halaman tidak ditemukan',
-            'HTTP_502': '⚙️ Bad Gateway (502)',
-            'HTTP_503': '⚙️ Service Unavailable (503)',
-            'HTTP_504': '⏱️ Gateway Timeout (504)',
-            'HTTP_500': '💥 Internal Server Error (500)'
-        };
-        
-        if (reason && reasonMap[reason]) {
-            return reasonMap[reason];
-        }
-        if (detail) {
-            return detail.length > 60 ? detail.substring(0, 60) + '...' : detail;
-        }
-        return reason || 'Unknown error';
+    function getProgressColor(percent) {
+        if (percent >= 90) return "linear-gradient(90deg, #06d6a0, #059669)";
+        if (percent >= 70) return "linear-gradient(90deg, #facc15, #eab308)";
+        return "linear-gradient(90deg, #ef4444, #dc2626)";
     }
     
     // ===============================
-    // MANUAL CHECK SERVICE
+    // GET READABLE REASON
+    // ===============================
+    function getReadableReason(reason, detail, statusCode, responseTime) {
+        if (reason === 'REDIRECT' || (statusCode >= 300 && statusCode < 400)) {
+            if (statusCode === 301) return '🔄 301 Moved Permanently - URL sudah berubah permanen, update database';
+            if (statusCode === 302) return '🔄 302 Found - Redirect sementara, perlu pengecekan';
+            return '🔄 URL Redirect - Perlu update URL di database';
+        }
+        
+        if (reason === 'EMPTY_PAGE') {
+            return '📄 Halaman kosong - Cek aplikasi, mungkin error/maintenance';
+        }
+        
+        if (reason === 'SLOW_RESPONSE' || (responseTime && responseTime > 3)) {
+            return `🐌 Response lambat (${responseTime?.toFixed(2)}s) - Optimasi performa`;
+        }
+        
+        if (reason === 'SSL_ERROR') {
+            return '🔒 SSL Certificate error - Perbarui sertifikat SSL';
+        }
+        
+        if (reason === 'TIMEOUT') {
+            if (!isInternetConnected) {
+                return '📡 TIDAK ADA KONEKSI INTERNET - Periksa koneksi WiFi/mobile data Anda';
+            }
+            return '⏱️ Request timeout - Server tidak merespon dalam batas waktu';
+        }
+        
+        if (reason === 'CONNECTION_REFUSED') {
+            if (!isInternetConnected) {
+                return '📡 TIDAK ADA KONEKSI INTERNET - Periksa koneksi WiFi/mobile data Anda';
+            }
+            return '🔌 Connection Refused - Server MATI atau port tertutup';
+        }
+        
+        if (reason === 'DNS_ERROR') {
+            if (!isInternetConnected) {
+                return '📡 TIDAK ADA KONEKSI INTERNET - DNS gagal karena internet terputus';
+            }
+            return '🌐 DNS Error - Domain tidak dapat diresolve, cek konfigurasi DNS';
+        }
+        
+        if (statusCode === 401) {
+            return '🔐 401 Unauthorized - Memerlukan autentikasi login. Server hidup, status service UP';
+        }
+        
+        if (statusCode === 403) {
+            return '🚫 403 Forbidden - Memerlukan izin akses. Server memahami request tapi menolak. Status service UP';
+        }
+        
+        if (statusCode === 404) {
+            return '🔍 404 Not Found - Halaman/endpoint tidak ditemukan, perbaiki URL';
+        }
+        
+        if (statusCode === 429) {
+            return '🐌 429 Too Many Requests - Terlalu banyak request, kena rate limiting';
+        }
+        
+        if (statusCode >= 500 && statusCode < 600) {
+            return `💥 Server Error (${statusCode}) - Cek log error server`;
+        }
+        
+        if (detail) {
+            return detail.length > 60 ? detail.substring(0, 60) + '...' : detail;
+        }
+        return reason || `Status code: ${statusCode || 'Tidak diketahui'}`;
+    }
+    
+    // ===============================
+    // SAVE SCROLL POSITION
+    // ===============================
+    function saveScrollPosition() {
+        const tableContainer = document.querySelector('.table-responsive');
+        if (tableContainer) {
+            scrollPosition = tableContainer.scrollTop;
+        }
+    }
+    
+    function restoreScrollPosition() {
+        const tableContainer = document.querySelector('.table-responsive');
+        if (tableContainer && scrollPosition > 0) {
+            setTimeout(() => {
+                tableContainer.scrollTop = scrollPosition;
+            }, 100);
+        }
+    }
+    
+    // ===============================
+    // MANUAL CHECK SERVICE (TETAP DI POSISI YANG SAMA)
     // ===============================
     async function manualCheck(serviceId) {
+        const isConnected = await checkInternetConnection();
+        
+        if (!isConnected) {
+            showNotification('⚠️ Tidak ada koneksi internet! Periksa WiFi/mobile data Anda.', 'error');
+            return;
+        }
+        
         if (checkingServiceId === serviceId) return;
+        
+        // Simpan posisi scroll sebelum check
+        saveScrollPosition();
+        lastCheckedServiceId = serviceId;
         
         checkingServiceId = serviceId;
         const checkBtn = document.getElementById(`check-btn-${serviceId}`);
         const originalHtml = checkBtn.innerHTML;
         
         checkBtn.disabled = true;
-        checkBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cek...';
+        checkBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         
         try {
             const response = await fetch(`/api/services/${serviceId}/check/`, {
@@ -580,8 +1142,12 @@
             
             const result = await response.json();
             if (result.success) {
-                showNotification(`Service check completed: ${result.status}`, 'success');
-                loadServices(); // Reload data
+                showNotification(`Status: ${result.status}`, 'success');
+                // Load ulang data dan restore posisi scroll
+                await loadServices();
+                restoreScrollPosition();
+                // Highlight baris yang baru di-check
+                highlightServiceRow(serviceId);
             } else {
                 showNotification(result.error || 'Check failed', 'error');
             }
@@ -596,18 +1162,30 @@
         }
     }
     
+    function highlightServiceRow(serviceId) {
+        setTimeout(() => {
+            const row = document.querySelector(`tr[data-id="${serviceId}"]`);
+            if (row) {
+                row.style.transition = 'background-color 0.5s';
+                row.style.backgroundColor = '#dbeafe';
+                setTimeout(() => {
+                    row.style.backgroundColor = '';
+                }, 2000);
+            }
+        }, 200);
+    }
+    
     // ===============================
-    // LOAD SERVICES FROM API
+    // LOAD SERVICES FROM API (DENGAN SORTING TERBARU DI ATAS)
     // ===============================
-    async function loadServices(page = 1, search = '') {
+    async function loadServices() {
         const tbody = document.getElementById('serviceTableBody');
-        currentPage = page;
         
         tbody.innerHTML = `
             <tr>
-                <td colspan="5" class="loading-state">
+                <td colspan="6" class="loading-state">
                     <i class="fas fa-spinner fa-spin"></i> Memuat data...
-                </td>
+                </td
             </tr>
         `;
         
@@ -625,42 +1203,43 @@
                 return;
             }
             
-            const data = await response.json();
-            
-            if (data.error) {
-                console.error('Error:', data.error);
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="5" class="empty-state">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            ${data.error}
-                        </td>
-                    </tr>
-                `;
-                return;
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
             }
             
-            allServices = data;
-            totalItems = data.length;
+            const data = await response.json();
+            
+            if (Array.isArray(data)) {
+                // SORTING: Service yang paling baru (ID terbesar) ada di ATAS
+                allServices = data.sort((a, b) => b.id - a.id);
+                totalItems = allServices.length;
+            } else if (data.data && Array.isArray(data.data)) {
+                allServices = data.data.sort((a, b) => b.id - a.id);
+                totalItems = allServices.length;
+            } else {
+                allServices = [];
+                totalItems = 0;
+            }
             
             const countSpan = document.getElementById('serviceCount');
             if (countSpan) countSpan.innerHTML = totalItems + ' Service';
             
-            renderServicesTable(data, page, search);
+            currentPage = 1;
+            renderServicesTable();
             renderPagination();
             
         } catch (error) {
-            console.error('Error:', error);
+            console.error('Error loading services:', error);
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="empty-state">
+                    <td colspan="6" class="empty-state">
                         <i class="fas fa-exclamation-triangle"></i>
-                        Gagal memuat data. Pastikan Anda sudah login.
+                        Gagal memuat data: ${error.message}
                         <br>
                         <button class="btn-primary" onclick="location.reload()" style="margin-top: 10px;">
                             <i class="fas fa-sync-alt"></i> Muat Ulang
                         </button>
-                    </td>
+                    </td
                 </tr>
             `;
         }
@@ -669,108 +1248,165 @@
     // ===============================
     // RENDER SERVICES TABLE
     // ===============================
-    function renderServicesTable(data, page, search) {
+    function renderServicesTable() {
         const tbody = document.getElementById('serviceTableBody');
+        const searchValue = document.getElementById('searchInput').value.toLowerCase();
         
-        let filteredData = data;
-        if (search) {
-            filteredData = data.filter(item => 
-                item.name.toLowerCase().includes(search.toLowerCase()) ||
-                item.url.toLowerCase().includes(search.toLowerCase())
+        let filteredData = allServices;
+        if (searchValue) {
+            filteredData = allServices.filter(item => 
+                (item.name && item.name.toLowerCase().includes(searchValue)) ||
+                (item.url && item.url.toLowerCase().includes(searchValue))
             );
             totalItems = filteredData.length;
+        } else {
+            totalItems = allServices.length;
         }
         
-        const start = (page - 1) * itemsPerPage;
+        totalPages = Math.ceil(totalItems / itemsPerPage);
+        
+        if (currentPage > totalPages && totalPages > 0) {
+            currentPage = totalPages;
+        }
+        
+        const start = (currentPage - 1) * itemsPerPage;
         const end = start + itemsPerPage;
         const pageData = filteredData.slice(start, end);
         
-        if (!pageData.length) {
+        const countSpan = document.getElementById('serviceCount');
+        if (countSpan) countSpan.innerHTML = totalItems + ' Service';
+        
+        if (totalItems === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="empty-state">
+                    <td colspan="6" class="empty-state">
                         <i class="fas fa-inbox"></i>
-                        <p>Belum ada data service</p>
+                        <p>${searchValue ? 'Tidak ada service yang cocok dengan pencarian "' + searchValue + '"' : 'Belum ada data service'}</p>
                         <button class="btn-primary" onclick="openServiceModal()" style="margin-top: 10px;">
                             <i class="fas fa-plus"></i> Tambah Service Sekarang
                         </button>
-                    </td>
+                    </td
                 </tr>
             `;
+            return;
+        }
+        
+        if (!pageData.length && currentPage > 1) {
+            currentPage = 1;
+            renderServicesTable();
+            renderPagination();
             return;
         }
         
         tbody.innerHTML = pageData.map(s => {
             const statusClass = getStatusBadgeClass(s.status);
             const statusText = getStatusText(s.status);
-            const readableReason = getReadableReason(s.down_reason, s.down_detail);
             const lastChecked = s.last_checked ? new Date(s.last_checked).toLocaleString('id-ID') : 'Belum dicek';
-            const responseTime = s.response_time ? `${s.response_time.toFixed(2)}s` : '-';
+            const responseTime = s.response_time ? s.response_time : 0;
+            const responseTimeDisplay = responseTime > 0 ? `${responseTime.toFixed(2)}s` : '-';
             const statusCode = s.status_code || '-';
+            const readableReason = getReadableReason(s.down_reason, s.down_detail, statusCode, responseTime);
             
-            // Detail info HTML
-            let detailHtml = '';
+            const isInternetIssue = readableReason.includes('TIDAK ADA KONEKSI INTERNET');
+            
+            const uptimeRate = s.uptime_percentage !== undefined && s.uptime_percentage !== null 
+                ? Math.round(s.uptime_percentage) 
+                : (s.status === 'UP' ? 100 : 0);
+            const progressColor = getProgressColor(uptimeRate);
+            
+            let statusHtml = `
+                <span class="status-badge ${statusClass}">
+                    <i class="fas fa-circle"></i> ${statusText}
+                </span>
+            `;
+            
             if (s.status === 'DOWN') {
-                detailHtml = `
+                const internetWarningHtml = isInternetIssue ? '<div class="internet-warning">⚠️ Cek Koneksi Internet</div>' : '';
+                
+                statusHtml += `
                     <div class="detail-info">
-                        <span class="status-code">🔴 Kode: ${statusCode}</span>
+                        ${internetWarningHtml}
                         <span class="down-reason">📋 ${readableReason}</span>
-                        <span class="response-time">⏱️ Respon: ${responseTime}</span>
+                        <span>🔢 Code: ${statusCode} | ⏱️ ${responseTimeDisplay}</span>
                     </div>
                 `;
-            } else if (s.status === 'DEGRADED') {
-                detailHtml = `
+            } else if (s.status === 'WARNING') {
+                statusHtml += `
                     <div class="detail-info">
-                        <span class="response-time">⏱️ Respon: ${responseTime} (lambat >5s)</span>
+                        <span class="warning-reason">⚠️ ${readableReason}</span>
+                        <span>🔢 Code: ${statusCode} | ⏱️ ${responseTimeDisplay}</span>
                     </div>
                 `;
             } else if (s.status === 'UP') {
-                detailHtml = `
+                let extraInfo = '';
+                
+                if (statusCode === 200) {
+                    extraInfo = '<span style="color:#059669;">✓ Service berfungsi dengan baik</span>';
+                } else if (statusCode === 401) {
+                    extraInfo = '<span style="color:#d97706;">🔐 401 Unauthorized - Memerlukan login. Server hidup, bukan error</span>';
+                } else if (statusCode === 403) {
+                    extraInfo = '<span style="color:#d97706;">🚫 403 Forbidden - Memerlukan izin akses. Server memahami request tapi menolak</span>';
+                } else if (statusCode === 404) {
+                    extraInfo = '<span class="down-reason">🔍 404 Not Found - Halaman tidak ditemukan</span>';
+                } else if (statusCode === 429) {
+                    extraInfo = '<span class="warning-reason">🐌 429 Too Many Requests - Terlalu banyak request, kena rate limiting</span>';
+                } else if (statusCode >= 500 && statusCode < 600) {
+                    extraInfo = '<span class="down-reason">💥 Terjadi error di server</span>';
+                }
+                
+                statusHtml += `
                     <div class="detail-info">
-                        <span class="status-code">🟢 Kode: ${statusCode}</span>
-                        <span class="response-time">⏱️ Respon: ${responseTime}</span>
+                        <span class="status-code">🔢 Code: ${statusCode} | ⏱️ ${responseTimeDisplay}</span>
+                        ${extraInfo ? `<span class="status-desc">${extraInfo}</span>` : ''}
                     </div>
                 `;
             } else {
-                detailHtml = `
+                statusHtml += `
                     <div class="detail-info">
-                        <span class="last-checked">⏰ Terakhir: ${lastChecked}</span>
+                        <span>🕐 ${lastChecked}</span>
                     </div>
                 `;
             }
+            
+            const uptimeHtml = `
+                <div class="uptime-container">
+                    <div class="percent-text-small">${uptimeRate}%</div>
+                    <div class="progress-bar-small">
+                        <div class="progress-fill-small" style="width: ${uptimeRate}%; background: ${progressColor};">
+                            ${uptimeRate >= 30 ? uptimeRate + '%' : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
             
             return `
                 <tr data-id="${s.id}">
                     <td data-label="Nama">
                         <strong>${escapeHtml(s.name)}</strong>
                         <div class="detail-info">
-                            <span class="last-checked">🕐 ${lastChecked}</span>
+                            <span>🕐 ${lastChecked}</span>
                         </div>
                     </td>
                     <td data-label="URL">
-                        <code style="font-family: monospace; font-size: 0.8rem;">${escapeHtml(s.url)}</code>
+                        <code class="url-code">${escapeHtml(s.url)}</code>
                     </td>
                     <td data-label="Tipe">
                         <span class="type-badge ${s.service_type === 'HTTP' ? 'type-http' : 'type-ping'}">
                             ${s.service_type === 'HTTP' ? '🌐' : '📡'} ${s.service_type}
                         </span>
                     </td>
-                    <td data-label="Status">
-                        <span class="status-badge ${statusClass}">
-                            <i class="fas fa-circle"></i> ${statusText}
-                        </span>
-                        ${detailHtml}
-                    </td>
+                    <td data-label="Status">${statusHtml}</td>
+                    <td data-label="Uptime">${uptimeHtml}</td>
                     <td data-label="Aksi">
                         <div class="action-buttons">
-                            <button class="btn-check" id="check-btn-${s.id}" onclick="manualCheck(${s.id})">
+                            <button class="btn-check" id="check-btn-${s.id}" onclick="manualCheck(${s.id})" title="Cek Status">
                                 <i class="fas fa-sync-alt"></i> Cek
                             </button>
-                            <button class="btn-edit" onclick="openEditService(${s.id}, '${escapeHtml(s.name)}', '${escapeHtml(s.url)}', '${s.service_type}')">
-                                <i class="fas fa-edit"></i> Edit
+                            <button class="btn-edit" onclick="openEditService(${s.id}, '${escapeHtml(s.name)}', '${escapeHtml(s.url)}', '${s.service_type}')" title="Edit">
+                                <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn-delete" onclick="openDeleteService(${s.id}, '${escapeHtml(s.name)}')">
-                                <i class="fas fa-trash"></i> Hapus
+                            <button class="btn-delete" onclick="openDeleteService(${s.id}, '${escapeHtml(s.name)}')" title="Hapus">
+                                <i class="fas fa-trash"></i>
                             </button>
                         </div>
                     </td>
@@ -780,13 +1416,11 @@
     }
     
     // ===============================
-    // PAGINATION
+    // RENDER PAGINATION
     // ===============================
     function renderPagination() {
         const container = document.getElementById('pagination');
         if (!container) return;
-        
-        const totalPages = Math.ceil(totalItems / itemsPerPage);
         
         if (totalPages <= 1) {
             container.innerHTML = '';
@@ -795,14 +1429,12 @@
         
         let html = '<div class="pagination-wrapper">';
         
-        html += `
-            <button class="page-btn" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
-                <i class="fas fa-chevron-left"></i>
-            </button>
-        `;
+        html += `<button class="page-btn" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+            <i class="fas fa-chevron-left"></i>
+        </button>`;
         
-        const startPage = Math.max(1, currentPage - 2);
-        const endPage = Math.min(totalPages, currentPage + 2);
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
         
         if (startPage > 1) {
             html += `<button class="page-btn" onclick="changePage(1)">1</button>`;
@@ -810,11 +1442,7 @@
         }
         
         for (let i = startPage; i <= endPage; i++) {
-            html += `
-                <button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">
-                    ${i}
-                </button>
-            `;
+            html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
         }
         
         if (endPage < totalPages) {
@@ -822,35 +1450,43 @@
             html += `<button class="page-btn" onclick="changePage(${totalPages})">${totalPages}</button>`;
         }
         
-        html += `
-            <button class="page-btn" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
-                <i class="fas fa-chevron-right"></i>
-            </button>
-        `;
+        html += `<button class="page-btn" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+            <i class="fas fa-chevron-right"></i>
+        </button>`;
         
-        html += `<span class="page-info">Total: ${totalItems} data</span>`;
+        const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+        const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+        html += `<span class="page-info">${startItem} - ${endItem} dari ${totalItems}</span>`;
+        
         html += '</div>';
         
         container.innerHTML = html;
     }
     
     function changePage(page) {
-        if (page < 1 || page > Math.ceil(totalItems / itemsPerPage)) return;
+        if (page < 1 || page > totalPages) return;
         currentPage = page;
-        const searchValue = document.getElementById('searchInput').value;
-        renderServicesTable(allServices, page, searchValue);
+        renderServicesTable();
         renderPagination();
+        restoreScrollPosition();
     }
     
     function searchServices() {
         currentPage = 1;
-        const searchValue = document.getElementById('searchInput').value;
-        renderServicesTable(allServices, 1, searchValue);
+        renderServicesTable();
+        renderPagination();
+    }
+    
+    function onPerPageChange() {
+        const select = document.getElementById('perPageSelect');
+        itemsPerPage = parseInt(select.value);
+        currentPage = 1;
+        renderServicesTable();
         renderPagination();
     }
     
     // ===============================
-    // MODAL SERVICE (CREATE/EDIT)
+    // MODAL SERVICE
     // ===============================
     function openServiceModal() {
         currentEditId = null;
@@ -984,21 +1620,7 @@
         const icon = type === 'success' ? 'fa-check-circle' : (type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle');
         
         notification.innerHTML = `
-            <div style="
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: ${bgColor};
-                color: white;
-                padding: 12px 20px;
-                border-radius: 10px;
-                z-index: 10000;
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                animation: slideInRight 0.3s ease;
-            ">
+            <div style="position:fixed;top:20px;right:20px;background:${bgColor};color:white;padding:12px 20px;border-radius:10px;z-index:10000;display:flex;align-items:center;gap:10px;box-shadow:0 4px 12px rgba(0,0,0,0.15);animation:slideInRight 0.3s ease;">
                 <i class="fas ${icon}"></i>
                 <span>${escapeHtml(message)}</span>
             </div>
@@ -1045,6 +1667,18 @@
     // INITIALIZE
     // ===============================
     document.addEventListener('DOMContentLoaded', () => {
+        const perPageSelect = document.getElementById('perPageSelect');
+        if (perPageSelect) {
+            perPageSelect.addEventListener('change', onPerPageChange);
+        }
+        
+        // Start auto refresh setiap 5 menit
+        startAutoRefresh();
+        
+        // Cek koneksi internet setiap 10 detik
+        setInterval(checkInternetConnection, 10000);
+        checkInternetConnection();
+        
         loadServices();
         
         window.onclick = function(e) {
@@ -1067,6 +1701,41 @@
             confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
             newBtn.onclick = confirmDelete;
         }
+        
+        // Hentikan auto refresh saat tab tidak aktif
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                stopAutoRefresh();
+            } else {
+                startAutoRefresh();
+                loadServices();
+            }
+        });
+        
+        // Simpan scroll position sebelum page refresh/unload
+        window.addEventListener('beforeunload', () => {
+            saveScrollPosition();
+        });
+    });
+    
+    window.addEventListener('beforeunload', () => {
+        stopAutoRefresh();
+    });
+    
+    // Event listener online/offline dari browser
+    window.addEventListener('online', () => {
+        console.log("[Browser] Internet connected!");
+        showNotification('✅ Koneksi internet pulih! Memperbarui data...', 'success');
+        removeInternetBanner();
+        loadServices();
+        isInternetConnected = true;
+    });
+    
+    window.addEventListener('offline', () => {
+        console.log("[Browser] Internet disconnected!");
+        showNotification('⚠️ Koneksi internet terputus!', 'error');
+        showInternetBanner();
+        isInternetConnected = false;
     });
 </script>
 

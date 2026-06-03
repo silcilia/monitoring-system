@@ -8,7 +8,7 @@ load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 DEBUG = os.getenv("DEBUG") == "True"
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 86400 
@@ -105,7 +105,7 @@ LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Asia/Jakarta'
 
 USE_I18N = True
-USE_TZ = True
+USE_TZ = False
 
 
 # ======================
@@ -151,6 +151,18 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:8000",
 ]
 
+# ======================
+# WHATSAPP NOTIFICATION (FONNTE)
+# ======================
 FONTE_TOKEN = os.getenv("FONTE_TOKEN")
 FONTE_API = os.getenv("FONTE_API")
+
+# ======================
+# EMAIL CONFIGURATION
+# ======================
 EMAIL_FROM = os.getenv("EMAIL_FROM")
+
+# ======================
+# API KEY FOR IoT DEVICES (ESP32, Arduino, dll)
+# ======================
+API_KEY = os.getenv("API_KEY", "jusavocad")
