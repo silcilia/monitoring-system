@@ -6,46 +6,77 @@ from django.utils import timezone
 from datetime import timedelta
 from collections import defaultdict
 from django.http import JsonResponse
-from django.core.management import call_command
-from django.db.models import Q
-import threading
 from django.conf import settings
-
+import threading
 import time
+import json
+import logging
+
+# ================================================================
+# IMPORT UTILS (FUNGSI DASAR) - HANYA DARI utils.py
+# ================================================================
 from .utils import (
     check_service_status,
-    send_alert,
     update_uptime_percentage,
     is_internet_available,
-    send_device_alert  # Tambahkan import ini
+    send_notification,
+    WEIGHT_UP,
+    WEIGHT_WARNING,
+    WEIGHT_DOWN,
 )
 
-from .models import Service, Contact, PowerLog, Log, Device, ServiceContact, DeviceContact, NotificationLog
+# ================================================================
+# IMPORT MONITORING (FUNGSI MONITORING) - DARI monitoring.py
+# ================================================================
+from .monitoring import (
+    send_alert,
+    send_device_alert,
+    check_device_statuses,
+    check_single_service as monitoring_check_single_service,
+    check_all_services as monitoring_check_all_services,
+    start_monitoring_thread as monitoring_start_thread,
+    monitoring_thread_running,
+)
 
-# ======================
-# AUTH DJANGO
-# ======================
+# ================================================================
+# IMPORT MODELS
+# ================================================================
+from .models import (
+    Service, Contact, PowerLog, Log, Device, 
+    ServiceContact, DeviceContact, NotificationLog
+)
+
+# ================================================================
+# IMPORT DJANGO AUTH
+# ================================================================
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 
-# ======================
-# CSRF & JSON
-# ======================
+# ================================================================
+# IMPORT CSRF & DECORATORS
+# ================================================================
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
 from django.utils.decorators import method_decorator
-import json
 
-# ======================
-# IMPORT UTILS
-# ======================
-from .utils import check_service_status, send_alert, update_uptime_percentage, is_internet_available, send_device_alert
+logger = logging.getLogger(__name__)
 
 
-# ======================
-# HELPER DASHBOARD
-# ======================
+# ================================================================
+# SECTION 1: HELPER FUNCTIONS
+# ================================================================
+
 def get_dashboard_data():
+    """
+    Mengambil data untuk ditampilkan di dashboard
+    ================================================================
+    Sekarang menggunakan bobot yang SAMA dengan perhitungan uptime:
+    - UP = 100%
+    - WARNING = 70%
+    - DOWN = 0%
+    
+    Returns:
+        dict: Berisi total, up, warning, down, percent, labels, data
+    """
     services = Service.objects.all()
 
     total = services.count()
@@ -55,28 +86,45 @@ def get_dashboard_data():
 
     percent = int((up / total) * 100) if total > 0 else 0
 
+    # ========== CHART 7 HARI TERAKHIR DENGAN BOBOT ==========
     today = timezone.now().date()
     seven_days_ago = today - timedelta(days=6)
+    
+    # Ambil semua log 7 hari terakhir (abaikan NO_INTERNET)
+    logs = Log.objects.filter(
+        timestamp__date__gte=seven_days_ago
+    ).exclude(
+        down_reason='NO_INTERNET'
+    )
 
-    logs = Log.objects.filter(timestamp__date__gte=seven_days_ago)
-
-    daily = defaultdict(list)
-
+    # Kelompokkan log berdasarkan hari
+    daily_logs = defaultdict(list)
     for log in logs:
         day = log.timestamp.date()
-        daily[day].append(log.status)
+        daily_logs[day].append(log)
 
     labels = []
     data = []
 
     for i in range(7):
         day = seven_days_ago + timedelta(days=i)
-        statuses = daily.get(day, [])
-
-        if statuses:
-            up_count = statuses.count('UP')
-            percent_day = int((up_count / len(statuses)) * 100)
+        day_logs = daily_logs.get(day, [])
+        
+        if day_logs:
+            # Hitung total bobot untuk hari ini (SAMA dengan rumus uptime)
+            total_weight = 0
+            for log in day_logs:
+                if log.status == 'UP':
+                    total_weight += WEIGHT_UP      # 100
+                elif log.status == 'WARNING':
+                    total_weight += WEIGHT_WARNING # 70
+                elif log.status == 'DOWN':
+                    total_weight += WEIGHT_DOWN    # 0
+            
+            # Rata-rata bobot = persentase hari itu
+            percent_day = int((total_weight / len(day_logs)))
         else:
+            # Tidak ada log, anggap 100% (semua service UP)
             percent_day = 100
 
         labels.append(day.strftime("%a"))
@@ -93,249 +141,44 @@ def get_dashboard_data():
     }
 
 
-# ======================
-# FUNGSI CHECK SINGLE SERVICE (UNTUK MANUAL CHECK) - DIPERBAIKI
-# ======================
+# ================================================================
+# SECTION 2: FUNGSI CHECK SINGLE SERVICE (WRAPPER)
+# ================================================================
+
 def check_single_service(service):
     """
-    Memeriksa SATU service (manual check)
-    - HANYA buat log jika status berubah
-    - last_checked SELALU update
-    - Notifikasi HANYA jika status berubah
+    WRAPPER untuk memanggil fungsi dari monitoring.py
+    ================================================================
     """
-    
-    # ========== CEK INTERNET DULU! ==========
-    if not is_internet_available():
-        print(f"⚠️ Internet TIDAK ADA! Tidak mengecek {service.name}")
-        return {
-            'success': False,
-            'error': 'Tidak ada koneksi internet - cek manual nanti'
-        }
-    
-    try:
-        print(f"\n[MANUAL CHECK] ========================================")
-        print(f"[MANUAL CHECK] Memulai pengecekan untuk: {service.name}")
-        print(f"[MANUAL CHECK] last_checked SEBELUM: {service.last_checked}")
-        
-        status, response_time, status_code, down_reason, down_detail = check_service_status(service)
-        
-        print(f"[MANUAL CHECK] Hasil pengecekan: status={status}, response_time={response_time:.2f}s, status_code={status_code}")
-        
-        # ========== UPDATE last_checked (SELALU update) ==========
-        waktu_sekarang = timezone.now()
-        service.last_checked = waktu_sekarang
-        service.last_response_time = response_time
-        service.last_status_code = status_code
-        
-        print(f"[MANUAL CHECK] last_checked SESUDAH di-set: {service.last_checked}")
-        
-        # Cek apakah status BERUBAH
-        old_status = service.last_status
-        
-        if status != old_status:
-            # ========== STATUS BERUBAH! ==========
-            service.last_status = status
-            service.last_down_reason = down_reason
-            service.last_down_detail = down_detail
-            
-            # BUAT LOG BARU (HANYA DISINI!)
-            Log.objects.create(
-                service=service,
-                status=status,
-                status_code=status_code,
-                response_time=response_time,
-                down_reason=down_reason,
-                message=down_detail
-            )
-            
-            # Update uptime percentage
-            update_uptime_percentage(service)
-            
-            # Kirim notifikasi jika WARNING atau DOWN
-            if status in ['WARNING', 'DOWN']:
-                send_alert(service, status, status_code, response_time, down_reason, down_detail)
-            
-            print(f"[MANUAL CHECK] ✅ {service.name}: {old_status} → {status} (log dibuat)")
-        else:
-            # ========== STATUS TIDAK BERUBAH! ==========
-            # TIDAK buat log, TIDAK kirim notifikasi
-            print(f"[MANUAL CHECK] ⏭️ {service.name}: status tetap {status} (tidak buat log, hanya update last_checked)")
-        
-        # ========== SELALU simpan ==========
-        service.save()
-        print(f"[MANUAL CHECK] Service {service.name} BERHASIL DISIMPAN")
-        
-        # Refresh dari database untuk memastikan
-        service.refresh_from_db()
-        print(f"[MANUAL CHECK] Verifikasi dari DB: last_checked = {service.last_checked}")
-        print(f"[MANUAL CHECK] ========================================\n")
-        
-        return {
-            'success': True,
-            'status': status,
-            'response_time': response_time,
-            'status_code': status_code
-        }
-        
-    except Exception as e:
-        print(f"❌ ERROR checking service {service.name}: {e}")
-        import traceback
-        traceback.print_exc()
-        
-        # LOG ERROR (bukan perubahan status, tapi error sistem)
-        try:
-            Log.objects.create(
-                service=service,
-                status='UNKNOWN',
-                message=f"Monitoring error: {str(e)[:200]}"
-            )
-        except:
-            pass
-        
-        return {
-            'success': False,
-            'error': str(e)
-        }
+    return monitoring_check_single_service(service)
 
 
-# ======================
-# MONITORING SERVICE (CHECK ALL SERVICES) - UNTUK OTOMATIS - DIPERBAIKI
-# ======================
 def check_all_services():
     """
-    Memeriksa SEMUA service (otomatis setiap 5 menit)
-    - HANYA buat log jika status berubah
-    - last_checked SELALU update
-    - Notifikasi HANYA jika status berubah
+    WRAPPER untuk memanggil fungsi dari monitoring.py
+    ================================================================
     """
-    
-    # ========== CEK INTERNET DULU! ==========
-    if not is_internet_available():
-        print(f"[{timezone.now()}] ⚠️ TIDAK ADA KONEKSI INTERNET! Melewati pengecekan service.")
-        return  # JANGAN UPDATE APAPUN!
-    
-    services = Service.objects.all()
-    print(f"\n[{timezone.now()}] [AUTO CHECK] ========================================")
-    print(f"[AUTO CHECK] Internet OK, mulai pengecekan {services.count()} service...")
-    
-    for service in services:
-        try:
-            print(f"\n[AUTO CHECK] Mengecek service: {service.name}")
-            print(f"[AUTO CHECK] last_checked SEBELUM: {service.last_checked}")
-            
-            status, response_time, status_code, down_reason, down_detail = check_service_status(service)
-            
-            # Update last_checked (SELALU update)
-            service.last_checked = timezone.now()
-            service.last_response_time = response_time
-            service.last_status_code = status_code
-            
-            print(f"[AUTO CHECK] last_checked SESUDAH di-set: {service.last_checked}")
-            
-            # Cek apakah status BERUBAH
-            old_status = service.last_status
-            
-            if status != old_status:
-                # ========== STATUS BERUBAH! ==========
-                service.last_status = status
-                service.last_down_reason = down_reason
-                service.last_down_detail = down_detail
-                
-                # BUAT LOG BARU (HANYA DISINI!)
-                Log.objects.create(
-                    service=service,
-                    status=status,
-                    status_code=status_code,
-                    response_time=response_time,
-                    down_reason=down_reason,
-                    message=down_detail
-                )
-                
-                # Update uptime percentage
-                update_uptime_percentage(service)
-                
-                # Kirim notifikasi jika WARNING atau DOWN
-                if status in ['WARNING', 'DOWN']:
-                    send_alert(service, status, status_code, response_time, down_reason, down_detail)
-                elif status == 'UP' and old_status in ['WARNING', 'DOWN']:
-                    # Kirim notifikasi recovery
-                    send_alert(service, status, status_code, response_time, down_reason, down_detail)
-                
-                print(f"[AUTO CHECK] ✅ {service.name}: {old_status} → {status} (log dibuat)")
-            else:
-                # ========== STATUS TIDAK BERUBAH! ==========
-                # TIDAK buat log, TIDAK kirim notifikasi
-                print(f"[AUTO CHECK] ⏭️ {service.name}: status tetap {status} (tidak buat log, hanya update last_checked)")
-            
-            # Update uptime percentage (tetap dihitung meski status tidak berubah)
-            update_uptime_percentage(service)
-            
-            # SELALU simpan
-            service.save()
-            print(f"[AUTO CHECK] Service {service.name} BERHASIL DISIMPAN")
-            print(f"[AUTO CHECK] ----------------------------------------")
-            
-        except Exception as e:
-            print(f"❌ ERROR checking service {service.name}: {e}")
-            import traceback
-            traceback.print_exc()
-            
-            # LOG ERROR (bukan perubahan status, tapi error sistem)
-            try:
-                Log.objects.create(
-                    service=service,
-                    status='UNKNOWN',
-                    message=f"Monitoring error: {str(e)[:200]}"
-                )
-            except:
-                pass
-    
-    print(f"[{timezone.now()}] [AUTO CHECK] Selesai pengecekan semua service")
-    print(f"[AUTO CHECK] ========================================\n")
+    return monitoring_check_all_services()
 
-
-# ======================
-# MONITORING THREAD (UNTUK BACKGROUND TASK)
-# ======================
-monitoring_thread_running = False
 
 def start_monitoring_thread():
-    """Jalankan monitoring di background thread setiap 5 menit"""
-    global monitoring_thread_running
-    
-    if monitoring_thread_running:
-        print("Monitoring thread already running")
-        return
-    
-    def monitor_loop():
-        global monitoring_thread_running
-        monitoring_thread_running = True
-        print("Monitoring thread loop started")
-        
-        while monitoring_thread_running:
-            try:
-                print(f"[{timezone.now()}] Running scheduled monitoring check (5 menit)...")
-                check_all_services()
-            except Exception as e:
-                print(f"Monitoring error: {e}")
-                import traceback
-                traceback.print_exc()
-            
-            # Tunggu 5 menit sebelum cek lagi
-            for i in range(300):
-                if not monitoring_thread_running:
-                    break
-                time.sleep(1)
-    
-    thread = threading.Thread(target=monitor_loop, daemon=True)
-    thread.start()
-    print("Monitoring thread started - akan mengecek semua service setiap 5 menit")
+    """
+    WRAPPER untuk memanggil fungsi dari monitoring.py
+    ================================================================
+    """
+    return monitoring_start_thread()
 
 
-# ======================
-# DASHBOARD (WEB)
-# ======================
+# ================================================================
+# SECTION 3: DASHBOARD VIEW (WEB)
+# ================================================================
+
 class DashboardView(TemplateView):
+    """
+    Halaman utama dashboard monitoring
+    ================================================================
+    Menampilkan ringkasan status service dan chart uptime
+    """
     template_name = 'services/dashboard.html'
 
     def dispatch(self, request, *args, **kwargs):
@@ -353,10 +196,12 @@ class DashboardView(TemplateView):
         return context
 
 
-# ======================
-# SERVICES (WEB)
-# ======================
+# ================================================================
+# SECTION 4: SERVICE MANAGEMENT (WEB)
+# ================================================================
+
 class ServiceListView(ListView):
+    """Halaman daftar service"""
     model = Service
     template_name = 'services/service_list.html'
     context_object_name = 'services'
@@ -368,6 +213,7 @@ class ServiceListView(ListView):
 
 
 class ServiceCreateView(CreateView):
+    """Halaman tambah service baru"""
     model = Service
     template_name = 'services/service_form.html'
     fields = ['name', 'url', 'service_type']
@@ -381,18 +227,14 @@ class ServiceCreateView(CreateView):
     def form_valid(self, form):
         """Setelah service ditambahkan, langsung cek statusnya"""
         response = super().form_valid(form)
-        
-        # Auto check service yang baru ditambahkan
         service = self.object
         print(f"Service baru ditambahkan: {service.name} - melakukan pengecekan otomatis...")
-        
-        # Jalankan pengecekan otomatis
         check_single_service(service)
-        
         return response
 
 
 class ServiceUpdateView(UpdateView):
+    """Halaman edit service"""
     model = Service
     template_name = 'services/service_form.html'
     fields = ['name', 'url', 'service_type']
@@ -406,18 +248,14 @@ class ServiceUpdateView(UpdateView):
     def form_valid(self, form):
         """Setelah service diedit, langsung cek statusnya"""
         response = super().form_valid(form)
-        
-        # Auto check service yang baru diedit
         service = self.object
         print(f"Service diedit: {service.name} - melakukan pengecekan otomatis...")
-        
-        # Jalankan pengecekan otomatis
         check_single_service(service)
-        
         return response
 
 
 class ServiceDeleteView(View):
+    """Hapus service (via AJAX)"""
     def post(self, request, pk):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Unauthorized"}, status=401)
@@ -426,9 +264,164 @@ class ServiceDeleteView(View):
         return JsonResponse({"message": "Service dihapus"})
 
 
-# ======================
-# SERVICE API (DENGAN DETAIL LENGKAP)
-# ======================
+# ================================================================
+# SECTION 5: CONTACT MANAGEMENT (WEB)
+# ================================================================
+
+class ContactListView(ListView):
+    """Halaman daftar kontak"""
+    model = Contact
+    template_name = 'services/contact_list.html'
+    context_object_name = 'contacts'
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('/login/')
+        return super().dispatch(request, *args, **kwargs)
+
+
+class ContactCreateView(CreateView):
+    """Halaman tambah kontak baru"""
+    model = Contact
+    template_name = 'services/contact_form.html'
+    fields = ['name', 'phone_number', 'email', 'notification_channel']
+    success_url = reverse_lazy('contact_list')
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('/login/')
+        return super().dispatch(request, *args, **kwargs)
+
+
+class ContactUpdateView(UpdateView):
+    """Halaman edit kontak"""
+    model = Contact
+    template_name = 'services/contact_form.html'
+    fields = ['name', 'phone_number', 'email', 'notification_channel', 'is_active']
+    success_url = reverse_lazy('contact_list')
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('/login/')
+        return super().dispatch(request, *args, **kwargs)
+
+
+class ContactDeleteView(View):
+    """Hapus kontak (via AJAX)"""
+    def post(self, request, pk):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+        contact = get_object_or_404(Contact, pk=pk)
+        contact.delete()
+        return JsonResponse({"message": "Contact dihapus"})
+
+
+# ================================================================
+# SECTION 6: POWER / IoT MONITORING (WEB)
+# ================================================================
+
+class PowerView(TemplateView):
+    """Halaman monitoring power (ESP32)"""
+    template_name = 'services/power.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('/login/')
+        return super().dispatch(request, *args, **kwargs)
+
+
+# ================================================================
+# SECTION 7: API ENDPOINTS (CSRF_EXEMPT)
+# ================================================================
+
+# ----- AUTH API -----
+class LoginAPI(View):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            username = data.get("username")
+            password = data.get("password")
+        except:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        if not username or not password:
+            return JsonResponse({"error": "Username & password wajib"}, status=400)
+
+        user = authenticate(request, username=username, password=password)
+
+        if user:
+            login(request, user)
+            request.session.save()
+            return JsonResponse({
+                "success": True,
+                "message": "Login berhasil",
+                "username": user.username
+            })
+
+        return JsonResponse({"success": False, "error": "Username atau password salah"}, status=401)
+
+
+class RegisterAPI(View):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            username = data.get("username")
+            password = data.get("password")
+        except:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        if not username or not password:
+            return JsonResponse({"error": "Username & password wajib"}, status=400)
+
+        if User.objects.filter(username=username).exists():
+            return JsonResponse({"error": "Username sudah ada"}, status=400)
+
+        user = User.objects.create_user(username=username, password=password)
+        return JsonResponse({"message": "User berhasil dibuat", "username": user.username})
+
+
+class LogoutAPI(View):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def post(self, request):
+        if request.user.is_authenticated:
+            logout(request)
+        return JsonResponse({"message": "Logout berhasil"})
+
+
+class CheckAuthAPI(View):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def get(self, request):
+        return JsonResponse({
+            "is_authenticated": request.user.is_authenticated,
+            "username": request.user.username if request.user.is_authenticated else None
+        })
+
+
+# ----- DASHBOARD API -----
+class DashboardAPI(View):
+    @method_decorator(csrf_exempt, name='dispatch')
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+        data = get_dashboard_data()
+        return JsonResponse(data)
+
+
+# ----- SERVICE API -----
 class ServiceAPI(View):
     @method_decorator(csrf_exempt)
     def dispatch(self, *args, **kwargs):
@@ -467,11 +460,8 @@ class ServiceAPI(View):
                 url=data.get("url"),
                 service_type=data.get("service_type")
             )
-            
-            # Auto check service yang baru ditambahkan via API
             print(f"[API] Service baru ditambahkan: {service.name} - melakukan pengecekan otomatis...")
             check_single_service(service)
-            
             return JsonResponse({
                 "message": "Service berhasil ditambahkan dan telah dicek otomatis",
                 "id": service.id,
@@ -481,15 +471,12 @@ class ServiceAPI(View):
             return JsonResponse({"error": str(e)}, status=400)
 
 
-# ======================
-# SERVICE DETAIL API
-# ======================
 class ServiceDetailAPI(View):
     @method_decorator(csrf_exempt)
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
-    def get(self, request, pk): 
+    def get(self, request, pk):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Unauthorized"}, status=401)
         
@@ -515,16 +502,12 @@ class ServiceDetailAPI(View):
         try:
             data = json.loads(request.body)
             service = get_object_or_404(Service, pk=pk)
-            
             service.name = data.get("name")
             service.url = data.get("url")
             service.service_type = data.get("service_type")
             service.save()
-            
-            # Auto check service yang baru diedit via API
             print(f"[API] Service diedit: {service.name} - melakukan pengecekan otomatis...")
             check_single_service(service)
-            
             return JsonResponse({
                 "message": "Service diupdate dan telah dicek otomatis",
                 "status": service.last_status
@@ -535,62 +518,34 @@ class ServiceDetailAPI(View):
     def delete(self, request, pk):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Unauthorized"}, status=401)
-        
         service = get_object_or_404(Service, pk=pk)
         service.delete()
         return JsonResponse({"message": "Service dihapus"})
 
 
-# ======================
-# CONTACT (WEB)
-# ======================
-class ContactListView(ListView):
-    model = Contact
-    template_name = 'services/contact_list.html'
-    context_object_name = 'contacts'
-
-    def dispatch(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            return redirect('/login/')
-        return super().dispatch(request, *args, **kwargs)
-
-
-class ContactCreateView(CreateView):
-    model = Contact
-    template_name = 'services/contact_form.html'
-    fields = ['name', 'phone_number', 'email', 'notification_channel']
-    success_url = reverse_lazy('contact_list')
-
-    def dispatch(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            return redirect('/login/')
-        return super().dispatch(request, *args, **kwargs)
-
-
-class ContactUpdateView(UpdateView):
-    model = Contact
-    template_name = 'services/contact_form.html'
-    fields = ['name', 'phone_number', 'email', 'notification_channel', 'is_active']
-    success_url = reverse_lazy('contact_list')
-
-    def dispatch(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            return redirect('/login/')
-        return super().dispatch(request, *args, **kwargs)
-
-
-class ContactDeleteView(View):
+class ManualCheckAPI(View):
+    @method_decorator(csrf_exempt, name='dispatch')
     def post(self, request, pk):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Unauthorized"}, status=401)
-        contact = get_object_or_404(Contact, pk=pk)
-        contact.delete()
-        return JsonResponse({"message": "Contact dihapus"})
+        
+        service = get_object_or_404(Service, pk=pk)
+        try:
+            result = check_single_service(service)
+            if result['success']:
+                return JsonResponse({
+                    "success": True,
+                    "status": result['status'],
+                    "status_code": result['status_code'],
+                    "response_time": result['response_time']
+                })
+            else:
+                return JsonResponse({"error": result.get('error', 'Check failed')}, status=400)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
 
 
-# ======================
-# CONTACT API
-# ======================
+# ----- CONTACT API -----
 class ContactAPI(View):
     @method_decorator(csrf_exempt)
     def dispatch(self, *args, **kwargs):
@@ -658,15 +613,12 @@ class ContactDetailAPI(View):
     def delete(self, request, pk):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Unauthorized"}, status=401)
-        
         contact = get_object_or_404(Contact, pk=pk)
         contact.delete()
         return JsonResponse({"message": "Contact dihapus"})
 
 
-# ======================
-# MONITORING LOGS API (UNTUK HISTORY SEMUA SERVICE)
-# ======================
+# ----- MONITORING LOGS API -----
 class MonitoringLogsAPI(View):
     @method_decorator(csrf_exempt)
     def dispatch(self, *args, **kwargs):
@@ -708,12 +660,8 @@ class MonitoringLogsAPI(View):
                 'logs': logs_data,
                 'total': len(logs_data)
             }, status=200)
-            
         except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'error': str(e)
-            }, status=500)
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
 class MonitoringLogDetailAPI(View):
@@ -727,7 +675,6 @@ class MonitoringLogDetailAPI(View):
         
         try:
             log = Log.objects.get(pk=pk)
-            
             data = {
                 'id': log.id,
                 'service_id': log.service.id if log.service else None,
@@ -738,29 +685,14 @@ class MonitoringLogDetailAPI(View):
                 'response_time': log.response_time,
                 'status_code': log.status_code,
                 'down_reason': log.down_reason,
-                'created_at': log.created_at.strftime("%Y-%m-%d %H:%M:%S") if hasattr(log, 'created_at') else log.timestamp.strftime("%Y-%m-%d %H:%M:%S")
             }
-            
-            return JsonResponse({
-                'success': True,
-                'log': data
-            }, status=200)
-            
+            return JsonResponse({'success': True, 'log': data}, status=200)
         except Log.DoesNotExist:
-            return JsonResponse({
-                'success': False,
-                'error': 'Log tidak ditemukan'
-            }, status=404)
+            return JsonResponse({'success': False, 'error': 'Log tidak ditemukan'}, status=404)
         except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'error': str(e)
-            }, status=500)
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
-# ======================
-# SERVICE LOG API (UNTUK HISTORY PER SERVICE)
-# ======================
 class ServiceLogAPI(View):
     @method_decorator(csrf_exempt)
     def dispatch(self, *args, **kwargs):
@@ -786,23 +718,9 @@ class ServiceLogAPI(View):
         return JsonResponse(data, safe=False)
 
 
-# ======================
-# POWER (WEB)
-# ======================
-class PowerView(TemplateView):
-    template_name = 'services/power.html'
-
-    def dispatch(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            return redirect('/login/')
-        return super().dispatch(request, *args, **kwargs)
-
-
-# ======================
-# POWER API (WEB DASHBOARD)
-# ======================
-@method_decorator(csrf_exempt, name='dispatch')
+# ----- POWER / IoT API -----
 class PowerDataAPI(View):
+    @method_decorator(csrf_exempt, name='dispatch')
     def get(self, request):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Unauthorized"}, status=401)
@@ -835,88 +753,71 @@ class PowerDataAPI(View):
         })
 
 
-# ======================
-# IoT API (UNTUK ESP32/DEVICE IOT) - DIPERBAIKI DENGAN API KEY CONSISTENT
-# ======================
-@method_decorator(csrf_exempt, name='dispatch')
 class PowerCreateAPI(View):
     """
     API untuk menerima data dari IoT devices (ESP32, Arduino, dll)
-    Menggunakan API Key authentication
+    ================================================================
+    Menggunakan API Key authentication (header X-API-KEY)
     """
     
-    def verify_api_key(self, request):
-        """Verifikasi API Key dari header"""
-        api_key = request.headers.get('X-API-KEY')
-        
-        # Cek apakah API Key ada dan match dengan settings
-        if not api_key:
-            return False, "API Key tidak ditemukan di header 'X-API-KEY'"
-        
-        if api_key != getattr(settings, 'API_KEY', None):
-            return False, "API Key tidak valid"
-        
-        return True, "Valid"
-    
+    @method_decorator(csrf_exempt, name='dispatch')
     def post(self, request):
-        # Verifikasi API Key
-        is_valid, message = self.verify_api_key(request)
-        if not is_valid:
-            return JsonResponse({'error': message}, status=403)
+        # VERIFIKASI API KEY
+        api_key = request.headers.get('X-API-KEY')
+        expected_api_key = getattr(settings, 'API_KEY', None)
+        
+        if not api_key:
+            return JsonResponse({'error': 'API Key tidak ditemukan di header X-API-KEY'}, status=401)
+        
+        if expected_api_key and api_key != expected_api_key:
+            return JsonResponse({'error': 'API Key tidak valid'}, status=403)
 
         try:
-            # Parse JSON data
             data = json.loads(request.body)
             device_id = data.get('device_id')
             voltage = data.get('voltage')
             current = data.get('current')
             power = data.get('power')
             
-            # Validasi required fields
+            # VALIDASI REQUIRED FIELDS
             if voltage is None or current is None or power is None:
                 return JsonResponse({
                     'error': 'Missing required fields: voltage, current, power are required'
                 }, status=400)
             
-            # Cari atau gunakan device
+            # CARI ATAU BUAT DEVICE
             if device_id:
                 try:
                     device = Device.objects.get(id=device_id)
                 except Device.DoesNotExist:
                     return JsonResponse({
-                        'error': f'Device with id {device_id} not found. Please create device first.'
-                    }, status=400)
+                        'error': f'Device with id {device_id} not found'
+                    }, status=404)
             else:
-                # Jika tidak ada device_id, gunakan device pertama atau buat default
                 device = Device.objects.first()
                 if not device:
-                    # Auto-create default device (opsional)
                     device = Device.objects.create(
-                        id=1,
                         name='Default-IoT-Device',
                         location='Unknown',
                         status='ONLINE'
                     )
                     print(f"[IoT API] Auto-created default device with ID: {device.id}")
             
-            # Update device status dan last_seen
+            # UPDATE DEVICE STATUS
             device.last_seen = timezone.now()
-            
-            # Cek apakah device sebelumnya offline
             was_offline = (device.status == 'OFFLINE')
+            
             if was_offline:
                 device.status = 'ONLINE'
                 device.save()
-                # Kirim notifikasi device online kembali
                 try:
-                    from .utils import send_device_alert
                     send_device_alert(device, is_offline=False)
                 except Exception as e:
                     print(f"Error sending device alert: {e}")
             else:
                 device.save(update_fields=['last_seen'])
             
-            # Simpan data power
+            # SIMPAN DATA POWER
             power_log = PowerLog.objects.create(
                 device=device,
                 voltage=voltage,
@@ -924,28 +825,23 @@ class PowerCreateAPI(View):
                 power=power
             )
             
-            # Cek threshold untuk alert (opsional)
-            alert_sent = False
+            # CEK THRESHOLD (LISTRIK BERMASALAH)
+            alert_messages = []
             if device.threshold_voltage and voltage < device.threshold_voltage:
-                try:
-                    from .utils import send_power_alert
-                    send_power_alert(device, f"Voltage rendah: {voltage}V < {device.threshold_voltage}V", 
-                                   voltage, current, power)
-                    alert_sent = True
-                except:
-                    pass
+                alert_messages.append(f"Voltage : {voltage}V (Normal: >{device.threshold_voltage}V)")
             
             if device.threshold_current and current > device.threshold_current:
-                try:
-                    from .utils import send_power_alert
-                    send_power_alert(device, f"Current tinggi: {current}A > {device.threshold_current}A",
-                                   voltage, current, power)
-                    alert_sent = True
-                except:
-                    pass
+                alert_messages.append(f"Arus : {current}A (Normal: <{device.threshold_current}A)")
             
-            # Return success response
-            response_data = {
+            if alert_messages:
+                try:
+                    send_device_alert(device, is_offline=False, extra_messages=alert_messages)
+                    print(f"[IoT API] Power alert untuk {device.name}: {alert_messages}")
+                except Exception as e:
+                    print(f"Error sending power alert: {e}")
+            
+            # RETURN SUCCESS RESPONSE
+            return JsonResponse({
                 "success": True,
                 "message": "Data power berhasil disimpan",
                 "id": power_log.id,
@@ -956,33 +852,22 @@ class PowerCreateAPI(View):
                 "current": power_log.current,
                 "power": power_log.power,
                 "timestamp": power_log.timestamp.strftime("%Y-%m-%d %H:%M:%S")
-            }
-            
-            if alert_sent:
-                response_data["alert"] = "Threshold alert telah dikirim"
-            
-            return JsonResponse(response_data, status=201)
+            }, status=201)
             
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON format"}, status=400)
-        except KeyError as e:
-            return JsonResponse({"error": f"Missing field: {str(e)}"}, status=400)
         except Exception as e:
             import traceback
             traceback.print_exc()
             return JsonResponse({"error": f"Internal server error: {str(e)}"}, status=500)
 
 
-# ======================
-# TRIGGER MONITORING API
-# ======================
-@method_decorator(csrf_exempt, name='dispatch')
 class StartMonitoringAPI(View):
+    @method_decorator(csrf_exempt, name='dispatch')
     def get(self, request):
         """Cek status monitoring thread"""
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Unauthorized"}, status=401)
-        
         return JsonResponse({
             "monitoring_active": monitoring_thread_running,
             "message": "Monitoring thread is running" if monitoring_thread_running else "Monitoring thread is not running"
@@ -991,169 +876,10 @@ class StartMonitoringAPI(View):
     def post(self, request):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Unauthorized"}, status=401)
-        
         start_monitoring_thread()
         return JsonResponse({"message": "Monitoring thread started", "active": True})
 
 
-# ======================
-# AUTH API
-# ======================
-class LoginAPI(View):
-    @method_decorator(csrf_exempt)
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
-    def post(self, request):
-        try:
-            data = json.loads(request.body)
-            username = data.get("username")
-            password = data.get("password")
-        except:
-            return JsonResponse({"error": "Invalid JSON"}, status=400)
-
-        if not username or not password:
-            return JsonResponse({"error": "Username & password wajib"}, status=400)
-
-        user = authenticate(request, username=username, password=password)
-
-        if user:
-            login(request, user)
-            request.session.save()
-            print(f"Login berhasil: {username}")
-            print(f"Session key: {request.session.session_key}")
-            
-            return JsonResponse({
-                "success": True,
-                "message": "Login berhasil",
-                "username": user.username
-            })
-
-        print(f"Login gagal: {username}")
-        return JsonResponse({"success": False, "error": "Username atau password salah"}, status=401)
-
-
-class RegisterAPI(View):
-    @method_decorator(csrf_exempt)
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
-    def post(self, request):
-        try:
-            data = json.loads(request.body)
-            username = data.get("username")
-            password = data.get("password")
-        except:
-            return JsonResponse({"error": "Invalid JSON"}, status=400)
-
-        if not username or not password:
-            return JsonResponse({"error": "Username & password wajib"}, status=400)
-
-        if User.objects.filter(username=username).exists():
-            return JsonResponse({"error": "Username sudah ada"}, status=400)
-
-        user = User.objects.create_user(
-            username=username,
-            password=password
-        )
-
-        return JsonResponse({
-            "message": "User berhasil dibuat",
-            "username": user.username
-        })
-
-
-class LogoutAPI(View):
-    @method_decorator(csrf_exempt)
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
-    def post(self, request):
-        if request.user.is_authenticated:
-            logout(request)
-        return JsonResponse({"message": "Logout berhasil"})
-
-
-# ======================
-# LOGIN PAGE
-# ======================
-class LoginPageView(TemplateView):
-    template_name = 'services/login.html'
-
-
-# ======================
-# DASHBOARD API
-# ======================
-@method_decorator(csrf_exempt, name='dispatch')
-class DashboardAPI(View):
-    def get(self, request):
-        if not request.user.is_authenticated:
-            return JsonResponse({"error": "Unauthorized"}, status=401)
-        
-        data = get_dashboard_data()
-        return JsonResponse(data)
-
-
-# ======================
-# CHECK AUTH API
-# ======================
-class CheckAuthAPI(View):
-    @method_decorator(csrf_exempt)
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
-    def get(self, request):
-        return JsonResponse({
-            "is_authenticated": request.user.is_authenticated,
-            "username": request.user.username if request.user.is_authenticated else None
-        })
-
-
-@method_decorator(csrf_exempt, name='dispatch')
-class DebugSessionAPI(View):
-    def get(self, request):
-        return JsonResponse({
-            "is_authenticated": request.user.is_authenticated,
-            "username": request.user.username if request.user.is_authenticated else None,
-            "session_key": request.session.session_key,
-            "session_items": dict(request.session.items()),
-            "cookies": request.COOKIES.get('sessionid', None)
-        })
-
-
-# ======================
-# MANUAL CHECK API
-# ======================
-@method_decorator(csrf_exempt, name='dispatch')
-class ManualCheckAPI(View):
-    def post(self, request, pk):
-        if not request.user.is_authenticated:
-            return JsonResponse({"error": "Unauthorized"}, status=401)
-        
-        service = get_object_or_404(Service, pk=pk)
-        
-        try:
-            result = check_single_service(service)
-            
-            if result['success']:
-                return JsonResponse({
-                    "success": True,
-                    "status": result['status'],
-                    "status_code": result['status_code'],
-                    "response_time": result['response_time']
-                })
-            else:
-                return JsonResponse({"error": result.get('error', 'Check failed')}, status=400)
-            
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            return JsonResponse({"error": str(e)}, status=400)
-
-
-# ======================
-# DEVICE API
-# ======================
 class DeviceAPI(View):
     @method_decorator(csrf_exempt)
     def dispatch(self, *args, **kwargs):
@@ -1181,11 +907,8 @@ class DeviceAPI(View):
         return JsonResponse(data, safe=False)
 
 
-# ======================
-# MONITORING STATUS API (BARU) - UNTUK CEK STATUS THREAD
-# ======================
-@method_decorator(csrf_exempt, name='dispatch')
 class MonitoringStatusAPI(View):
+    @method_decorator(csrf_exempt, name='dispatch')
     def get(self, request):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Unauthorized"}, status=401)
@@ -1198,4 +921,25 @@ class MonitoringStatusAPI(View):
             "total_services": total_services,
             "last_check_time": timezone.now().isoformat(),
             "last_log_time": last_log.timestamp.isoformat() if last_log else None
+        })
+
+
+# ================================================================
+# SECTION 8: UTILITY API (DEBUG)
+# ================================================================
+
+class LoginPageView(TemplateView):
+    """Halaman login"""
+    template_name = 'services/login.html'
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class DebugSessionAPI(View):
+    def get(self, request):
+        return JsonResponse({
+            "is_authenticated": request.user.is_authenticated,
+            "username": request.user.username if request.user.is_authenticated else None,
+            "session_key": request.session.session_key,
+            "session_items": dict(request.session.items()),
+            "cookies": request.COOKIES.get('sessionid', None)
         })

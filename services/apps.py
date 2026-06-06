@@ -60,7 +60,7 @@ class ServicesConfig(AppConfig):
                     logger.info("Running scheduled service status check...")
                     
                     
-                    from .utils import check_all_services, check_device_statuses
+                    from .monitoring import check_all_services, check_device_statuses
                     
                     # Cek semua service
                     check_all_services()

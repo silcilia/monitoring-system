@@ -6,46 +6,53 @@ import warnings
 from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
-from .models import Contact, Service, NotificationLog
+from .models import Contact, NotificationLog
 import logging
 
-# ========== MATIKAN WARNING YANG MENGGANGGU ==========
+# ================================================================
+# KONFIGURASI AWAL & MATIKAN WARNING
+# ================================================================
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 warnings.filterwarnings('ignore', message='Unverified HTTPS request')
-warnings.filterwarnings('ignore', category=ResourceWarning)
 
 logger = logging.getLogger(__name__)
 
-# =========================
+# ================================================================
 # KONFIGURASI WHATSAPP (FONNTE)
-# =========================
-FONTE_TOKEN = settings.FONTE_TOKEN
-FONTE_URL = settings.FONTE_API
+# ================================================================
+FONTE_TOKEN = #"KMruNFCaPo9EdbMw9QA6"
+FONTE_URL = #"https://api.fonnte.com/send"
 
-# =========================
+# ================================================================
 # KONFIGURASI EMAIL
-# =========================
-EMAIL_FROM = settings.EMAIL_FROM
+# ================================================================
+EMAIL_FROM = #"rsiadw45@gmail.com"
 
-# =========================
-# THRESHOLD DETEKSI LEMOT (detik)
-# =========================
-SLOW_RESPONSE_THRESHOLD = 3.0
+# ================================================================
+# THRESHOLD DAN BATASAN
+# ================================================================
+SLOW_RESPONSE_THRESHOLD = 10.0       # Batas response lambat (detik)
+MIN_CONTENT_LENGTH = 100             # Batas konten minimal (karakter)
+REQUEST_TIMEOUT = 10                 # Timeout request HTTP (detik)
 
-# =========================
-# THRESHOLD KONTEN MINIMAL (karakter)
-# =========================
-MIN_CONTENT_LENGTH = 100
+# ================================================================
+# KONFIGURASI UPTIME CALCULATION (BOBOT STATUS)
+# ================================================================
+# Bobot untuk menghitung uptime percentage
+# UP = 100% (service normal)
+# WARNING = 70% (service bermasalah tapi masih bisa diakses)
+# DOWN = 0% (service mati total)
+# ================================================================
+WEIGHT_UP = 100       # Service normal sempurna
+WEIGHT_WARNING = 70   # Service bermasalah tapi masih jalan (bisa diubah)
+WEIGHT_DOWN = 0       # Service mati total
+WEIGHT_UNKNOWN = 0    # Status tidak dikenal
 
-# =========================
-# TIMEOUT UNTUK REQUEST (detik)
-# =========================
-REQUEST_TIMEOUT = 8
 
-
-# =========================
-# CEK KONEKSI INTERNET (GLOBAL)
-# =========================
+# ================================================================
+# FUNGSI 1: CEK KONEKSI INTERNET
+# ================================================================
 def is_internet_available(host="8.8.8.8", port=53, timeout=3):
     """
     Cek apakah ada koneksi internet
@@ -59,34 +66,34 @@ def is_internet_available(host="8.8.8.8", port=53, timeout=3):
         return False
 
 
-# =========================
-# KLASIFIKASI PENYEBAB MASALAH
-# =========================
+# ================================================================
+# FUNGSI 2: KLASIFIKASI PENYEBAB MASALAH
+# ================================================================
 def classify_issue(status_code=None, response_time=None, error_type=None, content_length=None):
     """
-    Klasifikasi penyebab masalah untuk WARNING dan DOWN
+    Klasifikasi penyebab masalah untuk menentukan status WARNING atau DOWN
     
     Returns:
         tuple: (reason_code, reason_detail, tindakan_rekomendasi)
     """
     
-    # 0. NO INTERNET - JANGAN DIANGGAP DOWN SERVICE!
+    # 0. NO INTERNET - BUKAN ERROR SERVICE!
     if error_type == 'NO_INTERNET':
         return 'NO_INTERNET', 'Tidak ada koneksi internet - data tidak valid', 'Periksa koneksi jaringan'
     
-    # 1. TIMEOUT (Server tidak merespon) -> DOWN
+    # 1. TIMEOUT -> WARNING (server masih hidup tapi lambat)
     if error_type == 'Timeout' or (response_time and response_time > 30):
-        return 'TIMEOUT', f'Request timeout after {response_time:.2f}s', 'Cek server, restart jika perlu'
+        return 'TIMEOUT', f'Request timeout after {response_time:.2f}s', 'Server lambat, cek koneksi atau optimasi performa'
     
-    # 2. Connection Error (Server mati) -> DOWN
+    # 2. Connection Error -> DOWN (server mati)
     if error_type == 'ConnectionError':
         return 'CONNECTION_REFUSED', 'Koneksi ditolak - Server mati', 'Cek server, nyalakan jika perlu'
     
-    # 3. DNS Error -> DOWN
+    # 3. DNS Error -> DOWN (domain tidak ditemukan)
     if error_type == 'DNS_ERROR':
         return 'DNS_ERROR', 'DNS resolution failed - Domain tidak ditemukan', 'Cek konfigurasi DNS domain'
     
-    # 4. SSL Error -> WARNING (server hidup tapi SSL bermasalah)
+    # 4. SSL Error -> WARNING (sertifikat bermasalah)
     if error_type == 'SSL_ERROR':
         return 'SSL_ERROR', 'SSL certificate error - Sertifikat SSL bermasalah', 'Perbarui sertifikat SSL'
     
@@ -100,19 +107,19 @@ def classify_issue(status_code=None, response_time=None, error_type=None, conten
     
     # 7. HTTP Status Codes
     if status_code:
-        # REDIRECT -> WARNING
+        # REDIRECT (301,302,dll) -> WARNING
         if status_code in [301, 302, 303, 307, 308]:
             return 'REDIRECT', f'URL Redirect ({status_code})', 'Update URL di database dengan URL terbaru'
         
-        # 401/403 -> UP (server hidup, perlu login) - BUKAN ERROR
+        # 401/403 -> UP (server hidup, perlu login) - BUKAN ERROR!
         if status_code in [401, 403]:
-            return None, None, None  # Bukan masalah, tetap UP
+            return None, None, None
         
         # 404 -> DOWN
         if status_code == 404:
             return 'HTTP_404', 'Not Found - Halaman tidak ditemukan', 'Perbaiki link atau buat ulang halaman'
         
-        # 400, 405, 406, 409, 410 -> DOWN
+        # 4xx Lainnya -> DOWN
         if status_code in [400, 405, 406, 409, 410]:
             return f'HTTP_{status_code}', f'Client Error ({status_code})', 'Perbaiki request atau URL'
         
@@ -123,18 +130,18 @@ def classify_issue(status_code=None, response_time=None, error_type=None, conten
     return 'UNKNOWN', 'Unknown error occurred', 'Cek manual ke server'
 
 
-# =========================
-# CEK STATUS SERVICE (3 STATUS: UP, WARNING, DOWN)
-# =========================
+# ================================================================
+# FUNGSI 3: CEK STATUS SERVICE (HTTP / PING)
+# ================================================================
 def check_service_status(service):
     """
-    Mengecek status service dengan 3 status:
-    - UP: Service berfungsi normal (200, 401, 403)
-    - WARNING: Ada masalah kecil (redirect, kosong, lambat, SSL error)
-    - DOWN: Service tidak berfungsi (404, 500, timeout, connection refused)
+    Mengecek status service dengan 3 status: UP, WARNING, DOWN
+    
+    Returns:
+        tuple: (status, response_time, status_code, down_reason, down_detail)
     """
     
-    # ========== CEK INTERNET DULU! ==========
+    # CEK INTERNET DULU!
     if not is_internet_available():
         logger.warning(f"Internet TIDAK ADA! Melewati pengecekan {service.name}")
         return None, 0, None, 'NO_INTERNET', 'Tidak ada koneksi internet - data tidak valid'
@@ -142,10 +149,10 @@ def check_service_status(service):
     start_time = time.time()
     status_code = None
     response_time = None
-    error_type = None
     content_length = 0
     
     try:
+        # ========== UNTUK SERVICE HTTP ==========
         if service.service_type == 'HTTP':
             response = requests.get(
                 service.url,
@@ -167,7 +174,7 @@ def check_service_status(service):
             if status_code in [401, 403]:
                 return 'UP', response_time, status_code, None, f"Server hidup - perlu autentikasi ({status_code})"
             
-            # 200 OK
+            # 200 OK - cek konten dan kecepatan
             if 200 <= status_code < 300:
                 if content_length < MIN_CONTENT_LENGTH:
                     reason, detail, action = classify_issue(content_length=content_length)
@@ -181,11 +188,13 @@ def check_service_status(service):
             
             # 4xx/5xx -> DOWN
             if status_code >= 400:
-                reason, detail, action = classify_issue(status_code=status_code)
-                return 'DOWN', response_time, status_code, reason, detail
+                if status_code == 404:
+                    return 'DOWN', response_time, status_code, 'HTTP_404', 'Halaman tidak ditemukan'
+                return 'DOWN', response_time, status_code, 'HTTP_ERROR', f'Error {status_code}'
             
             return 'DOWN', response_time, status_code, 'UNKNOWN', f'Status tidak dikenal ({status_code})'
         
+        # ========== UNTUK SERVICE PING ==========
         elif service.service_type == 'PING':
             import subprocess
             import platform
@@ -208,8 +217,7 @@ def check_service_status(service):
         
     except requests.exceptions.Timeout:
         response_time = time.time() - start_time
-        reason, detail, action = classify_issue(error_type='Timeout', response_time=response_time)
-        return 'DOWN', response_time, None, reason, detail
+        return 'WARNING', response_time, None, 'TIMEOUT', f'Request timeout - Server lambat merespon ({response_time:.2f}s)'
     
     except requests.exceptions.ConnectionError as e:
         response_time = time.time() - start_time
@@ -233,32 +241,45 @@ def check_service_status(service):
     return 'DOWN', 0, None, 'UNKNOWN', 'Unknown error'
 
 
-# =========================
-# KIRIM WHATSAPP (FONNTE)
-# =========================
+# ================================================================
+# FUNGSI 4: KIRIM WHATSAPP VIA FONNTE
+# ================================================================
 def send_whatsapp(phone_number, message):
-    """Kirim notifikasi via WhatsApp"""
+    """
+    Kirim notifikasi via WhatsApp menggunakan API Fonnte
+    Returns True jika berhasil, False jika gagal
+    """
     try:
+        phone = phone_number.strip()
+        if phone.startswith('0'):
+            phone = '62' + phone[1:]
+        elif phone.startswith('+'):
+            phone = phone[1:]
+        
+        print(f"[WA] Mengirim ke: {phone}")
+        
         response = requests.post(
             FONTE_URL,
-            data={
-                "target": phone_number,
-                "message": message
-            },
-            headers={
-                "Authorization": FONTE_TOKEN
-            },
+            data={"target": phone, "message": message},
+            headers={"Authorization": FONTE_TOKEN},
             timeout=10
         )
-        return response.status_code == 200
+        
+        if response.status_code == 200:
+            print(f"[WA] Berhasil dikirim ke {phone}")
+            return True
+        else:
+            print(f"[WA] Gagal: {response.text}")
+            return False
+            
     except Exception as e:
-        logger.error(f"Failed to send WhatsApp to {phone_number}: {e}")
+        print(f"[WA] Error: {e}")
         return False
 
 
-# =========================
-# KIRIM EMAIL
-# =========================
+# ================================================================
+# FUNGSI 5: KIRIM EMAIL
+# ================================================================
 def send_email(email_address, subject, message):
     """Kirim notifikasi via Email"""
     try:
@@ -269,21 +290,25 @@ def send_email(email_address, subject, message):
             recipient_list=[email_address],
             fail_silently=False,
         )
+        print(f"[EMAIL] Berhasil dikirim ke {email_address}")
         return True
     except Exception as e:
         logger.error(f"Failed to send email to {email_address}: {e}")
         return False
 
 
-# =========================
-# KIRIM NOTIFIKASI MULTI-CHANNEL
-# =========================
+# ================================================================
+# FUNGSI 6: KIRIM NOTIFIKASI MULTI-CHANNEL
+# ================================================================
 def send_notification(contact, title, message):
-    """Kirim notifikasi ke contact berdasarkan channel yang dipilih"""
+    """
+    Kirim notifikasi ke contact berdasarkan channel yang dipilih
+    Channel: WHATSAPP, EMAIL, BOTH
+    """
     results = []
     
     if contact.notification_channel in ['WHATSAPP', 'BOTH']:
-        whatsapp_success = send_whatsapp(contact.phone_number, f"{title}\n\n{message}")
+        whatsapp_success = send_whatsapp(contact.phone_number, message)
         results.append(('WHATSAPP', whatsapp_success))
         
         NotificationLog.objects.create(
@@ -312,196 +337,15 @@ def send_notification(contact, title, message):
     return results
 
 
-# =========================
-# KIRIM ALERT (DENGAN ANTI SPAM)
-# =========================
-def send_alert(service, status, status_code=None, response_time=None, down_reason=None, down_detail=None):
-    """Kirim alert ke semua contact yang terhubung dengan service"""
-    
-    if not is_internet_available():
-        logger.info(f"Internet tidak ada! Melewati pengiriman alert untuk {service.name}")
-        return
-    
-    now = timezone.now().strftime("%d-%m-%Y %H:%M:%S")
-    
-    if not service.needs_notification():
-        logger.info(f"Notification cooldown active for service {service.name}")
-        return
-    
-    service.last_notified = timezone.now()
-    service.save(update_fields=['last_notified'])
-    
-    service_contacts = service.servicecontact_set.all()
-    
-    if not service_contacts.exists():
-        logger.warning(f"No contacts found for service {service.name}")
-        return
-    
-    if status == 'DOWN':
-        reason_display = {
-            'TIMEOUT': '⏱️ Request Timeout - Server tidak merespon',
-            'CONNECTION_REFUSED': '🔌 Koneksi Ditolak - Server mati',
-            'NETWORK_UNREACHABLE': '🌐 Jaringan Down Total',
-            'DNS_ERROR': '🌐 DNS Resolution Failed',
-            'HTTP_404': '🔍 Not Found (404) - Halaman tidak ditemukan',
-            'HTTP_500': '💥 Internal Server Error (500)',
-            'HTTP_502': '⚙️ Bad Gateway (502)',
-            'HTTP_503': '⚙️ Service Unavailable (503)',
-            'HTTP_504': '⏱️ Gateway Timeout (504)',
-            'PING_FAILED': '📡 Host tidak merespon ping',
-        }
-        
-        reason_text = reason_display.get(down_reason, down_reason or 'Unknown Error')
-        
-        title = f"🔴 ALERT - {service.name} DOWN"
-        message = f"""
-━━━━━━━━━━━━━━━━━━━━━━━━
-🔴 SERVICE DOWN ALERT
-━━━━━━━━━━━━━━━━━━━━━━━━
-
-📌 Service : {service.name}
-🔗 URL : {service.url}
-📋 Tipe : {service.service_type}
-
-📊 Detail Masalah:
-├ Status : DOWN - Tidak Berfungsi
-├ HTTP Code : {status_code or 'N/A'}
-├ Response Time : {response_time:.2f}s
-└ Penyebab : {reason_text}
-
-📝 Detail : {down_detail or 'Tidak tersedia'}
-
-⏰ Waktu : {now}
-
-━━━━━━━━━━━━━━━━━━━━━━━━
-🔧 TINDAKAN: Perbaiki segera!
-━━━━━━━━━━━━━━━━━━━━━━━━
-"""
-    
-    elif status == 'WARNING':
-        title = f"🟠 ALERT - {service.name} WARNING"
-        message = f"""
-━━━━━━━━━━━━━━━━━━━━━━━━
-🟠 SERVICE WARNING
-━━━━━━━━━━━━━━━━━━━━━━━━
-
-📌 Service : {service.name}
-🔗 URL : {service.url}
-
-📊 Detail:
-├ Status : WARNING - Perlu Perhatian
-├ HTTP Code : {status_code or 'N/A'}
-├ Response Time : {response_time:.2f}s
-└ Penyebab : {down_detail or down_reason or 'Ada masalah kecil'}
-
-⏰ Waktu : {now}
-
-━━━━━━━━━━━━━━━━━━━━━━━━
-🔧 TINDAKAN: Periksa dan perbaiki
-━━━━━━━━━━━━━━━━━━━━━━━━
-"""
-    
-    else:
-        title = f"🟢 RECOVERY - {service.name} Kembali Normal"
-        message = f"""
-━━━━━━━━━━━━━━━━━━━━━━━━
-🟢 SERVICE RECOVERY
-━━━━━━━━━━━━━━━━━━━━━━━━
-
-📌 Service : {service.name}
-🔗 URL : {service.url}
-
-📊 Status:
-├ Status : UP - Normal
-├ HTTP Code : {status_code or 'N/A'}
-└ Response Time : {response_time:.2f}s
-
-⏰ Waktu : {now}
-
-━━━━━━━━━━━━━━━━━━━━━━━━
-✅ Layanan telah pulih
-━━━━━━━━━━━━━━━━━━━━━━━━
-"""
-    
-    for sc in service_contacts:
-        contact = sc.contact
-        if contact.is_active:
-            send_notification(contact, title, message)
-            logger.info(f"Alert sent to {contact.name} via {contact.notification_channel}")
-
-
-# =========================
-# KIRIM ALERT DEVICE OFFLINE
-# =========================
-def send_device_alert(device, is_offline=True):
-    """Kirim alert jika ESP32 mati/offline"""
-    
-    if not is_internet_available():
-        logger.info(f"Internet tidak ada! Melewati pengiriman alert device untuk {device.name}")
-        return
-    
-    now = timezone.now().strftime("%d-%m-%Y %H:%M:%S")
-    
-    device_contacts = device.devicecontact_set.all()
-    
-    if not device_contacts.exists():
-        logger.warning(f"No contacts found for device {device.name}")
-        return
-    
-    if is_offline:
-        title = f"🔴 ALERT - Device {device.name} OFFLINE"
-        message = f"""
-━━━━━━━━━━━━━━━━━━━━━━━━
-🔴 DEVICE OFFLINE ALERT
-━━━━━━━━━━━━━━━━━━━━━━━━
-
-📟 Device : {device.name}
-📍 Lokasi : {device.location}
-
-📊 Detail:
-├ Status : OFFLINE
-├ Last Data : {device.last_seen.strftime('%d-%m-%Y %H:%M:%S') if device.last_seen else 'Tidak pernah'}
-└ Power Backup : {'Ada' if device.has_power_backup else 'Tidak Ada'}
-
-⏰ Waktu : {now}
-
-━━━━━━━━━━━━━━━━━━━━━━━━
-🔧 TINDAKAN: Cek koneksi dan daya
-━━━━━━━━━━━━━━━━━━━━━━━━
-"""
-    else:
-        title = f"🟢 Device {device.name} ONLINE"
-        message = f"""
-━━━━━━━━━━━━━━━━━━━━━━━━
-🟢 DEVICE ONLINE
-━━━━━━━━━━━━━━━━━━━━━━━━
-
-📟 Device : {device.name}
-📍 Lokasi : {device.location}
-
-📊 Status: ONLINE
-
-⏰ Waktu : {now}
-
-━━━━━━━━━━━━━━━━━━━━━━━━
-"""
-    
-    for dc in device_contacts:
-        contact = dc.contact
-        if contact.is_active:
-            send_notification(contact, title, message)
-            logger.info(f"Device alert sent to {contact.name}")
-
-
-# =========================
-# UPDATE UPTIME PERCENTAGE
-# =========================
+# ================================================================
+# FUNGSI 7:  UPTIME PERCENTAGE 
+# ================================================================
 def update_uptime_percentage(service):
-    """Hitung uptime percentage untuk 30 hari terakhir - EXCLUDE data saat internet mati"""
     from datetime import timedelta
     
     thirty_days_ago = timezone.now() - timedelta(days=30)
     
+    # Ambil log 30 hari terakhir (abaikan log karena NO_INTERNET)
     logs = service.log_set.filter(
         timestamp__gte=thirty_days_ago
     ).exclude(
@@ -512,122 +356,91 @@ def update_uptime_percentage(service):
     if total_checks == 0:
         return
     
-    up_checks = logs.filter(status='UP').count()
-    uptime = (up_checks / total_checks) * 100
+    # Hitung total bobot berdasarkan status
+    total_weight = 0
+    for log in logs:
+        if log.status == 'UP':
+            total_weight += WEIGHT_UP
+        elif log.status == 'WARNING':
+            total_weight += WEIGHT_WARNING
+        elif log.status == 'DOWN':
+            total_weight += WEIGHT_DOWN
+        else:
+            # Status UNKNOWN atau lainnya
+            total_weight += WEIGHT_UNKNOWN
     
+    # Rata-rata bobot = uptime percentage
+    uptime = (total_weight / total_checks)
+    
+    # Simpan ke database
     service.uptime_percentage = round(uptime, 2)
     service.save(update_fields=['uptime_percentage'])
+    
+    # Debug output (opsional, bisa dihapus jika tidak perlu)
+    logger.debug(f"Uptime calculation for {service.name}: "
+                 f"total={total_checks}, "
+                 f"UP={logs.filter(status='UP').count()}, "
+                 f"WARNING={logs.filter(status='WARNING').count()}, "
+                 f"DOWN={logs.filter(status='DOWN').count()}, "
+                 f"uptime={uptime:.2f}%")
 
 
-# =========================
-# CEK STATUS DEVICE (ESP32)
-# =========================
-def check_device_statuses():
-    """Memeriksa status semua device (ESP32)"""
-    from .models import Device
+# ================================================================
+# FUNGSI 8: GET UPTIME WITH WEIGHT (UNTUK REPORTING)
+# ================================================================
+def get_weighted_uptime(service, days=30):
+    """
+    Mendapatkan uptime percentage dengan bobot untuk periode tertentu
+    ================================================================
+    Args:
+        service: objek Service
+        days: jumlah hari kebelakang (default 30)
+    
+    Returns:
+        float: uptime percentage (0-100)
+    """
     from datetime import timedelta
     
-    devices = Device.objects.all()
-    offline_threshold = timezone.now() - timedelta(minutes=5)
+    since = timezone.now() - timedelta(days=days)
     
-    for device in devices:
-        last_log = device.powerlog_set.order_by('-timestamp').first()
-        
-        if last_log:
-            device.last_seen = last_log.timestamp
-            device.save(update_fields=['last_seen'])
-            
-            if last_log.timestamp < offline_threshold:
-                if device.status != 'OFFLINE':
-                    device.status = 'OFFLINE'
-                    device.save(update_fields=['status'])
-                    logger.warning(f"Device {device.name} is OFFLINE")
-                    try:
-                        send_device_alert(device, is_offline=True)
-                    except ImportError:
-                        pass
-            else:
-                if device.status != 'ONLINE':
-                    device.status = 'ONLINE'
-                    device.save(update_fields=['status'])
-                    logger.info(f"Device {device.name} is ONLINE")
-                    try:
-                        send_device_alert(device, is_offline=False)
-                    except ImportError:
-                        pass
+    logs = service.log_set.filter(
+        timestamp__gte=since
+    ).exclude(
+        down_reason='NO_INTERNET'
+    )
+    
+    total_checks = logs.count()
+    if total_checks == 0:
+        return 100.0  # Belum ada data, anggap 100%
+    
+    total_weight = 0
+    for log in logs:
+        if log.status == 'UP':
+            total_weight += WEIGHT_UP
+        elif log.status == 'WARNING':
+            total_weight += WEIGHT_WARNING
+        elif log.status == 'DOWN':
+            total_weight += WEIGHT_DOWN
+        else:
+            total_weight += WEIGHT_UNKNOWN
+    
+    return round((total_weight / total_checks), 2)
 
 
-# =========================
-# CEK SEMUA SERVICE (UNTUK BACKGROUND THREAD) - TIDAK BUAT LOG JIKA STATUS SAMA
-# =========================
-def check_all_services():
+def get_sla_status(uptime):
     """
-    Memeriksa semua service dan update status (dijalankan setiap 5 menit)
-    - HANYA buat log jika status berubah
-    - last_checked SELALU update
-    - Notifikasi HANYA jika status berubah
+    Mendapatkan status SLA berdasarkan uptime percentage
+    ================================================================
+    Returns:
+        str: 'Good', 'Warning', atau 'Critical'
     """
-    from .models import Service, Log
-    
-    if not is_internet_available():
-        logger.warning(f"[{timezone.now()}] ⚠️ TIDAK ADA KONEKSI INTERNET! Melewati pengecekan service.")
-        return
-    
-    services = Service.objects.all()
-    logger.info(f"[{timezone.now()}] Internet OK, mulai pengecekan {services.count()} service...")
-    
-    for service in services:
-        try:
-            status, response_time, status_code, down_reason, down_detail = check_service_status(service)
-            
-            # Update last_checked (SELALU update)
-            service.last_checked = timezone.now()
-            service.last_response_time = response_time
-            service.last_status_code = status_code
-            
-            # Cek apakah status BERUBAH
-            old_status = service.last_status
-            
-            if status != old_status:
-                # ========== STATUS BERUBAH! ==========
-                service.last_status = status
-                service.last_down_reason = down_reason
-                service.last_down_detail = down_detail
-                
-                # BUAT LOG BARU (HANYA DISINI!)
-                Log.objects.create(
-                    service=service,
-                    status=status,
-                    status_code=status_code,
-                    response_time=response_time,
-                    down_reason=down_reason,
-                    message=down_detail
-                )
-                
-                # Kirim notifikasi jika WARNING atau DOWN
-                if status in ['WARNING', 'DOWN']:
-                    send_alert(service, status, status_code, response_time, down_reason, down_detail)
-                elif status == 'UP' and old_status in ['WARNING', 'DOWN']:
-                    send_alert(service, status, status_code, response_time, down_reason, down_detail)
-                
-                logger.info(f"[AUTO] ✅ {service.name}: {old_status} → {status} (log dibuat)")
-            else:
-                # ========== STATUS TIDAK BERUBAH! ==========
-                # TIDAK buat log, TIDAK kirim notifikasi
-                logger.info(f"[AUTO] ⏭️ {service.name}: status tetap {status} (tidak buat log)")
-            
-            # Update uptime percentage
-            update_uptime_percentage(service)
-            
-            # SELALU simpan (last_checked tetap tersimpan)
-            service.save()
-            
-        except Exception as e:
-            logger.error(f"Error checking service {service.name}: {e}")
-            
-            # Log error (bukan perubahan status)
-            Log.objects.create(
-                service=service,
-                status='UNKNOWN',
-                message=f"Monitoring error: {str(e)[:200]}"
-            )
+    if uptime >= 99.0:
+        return 'Excellent'
+    elif uptime >= 95.0:
+        return 'Good'
+    elif uptime >= 90.0:
+        return 'Fair'
+    elif uptime >= 80.0:
+        return 'Warning'
+    else:
+        return 'Critical'

@@ -415,23 +415,6 @@
 .dot-up { background: #10b981; }
 .dot-warning { background: #f59e0b; }
 .dot-down { background: #ef4444; }
-
-/* Info last check banner */
-.info-banner {
-    background: #e0f2fe;
-    color: #0369a1;
-    padding: 10px 15px;
-    border-radius: 8px;
-    margin-bottom: 15px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 12px;
-    border-left: 4px solid #0284c7;
-}
-.info-banner i {
-    font-size: 16px;
-}
 </style>
 
 <!-- ================= HEADER ================= -->
@@ -511,8 +494,8 @@
                 <button class="filter-btn" data-filter="DOWN">❌ DOWN</button>
             </div>
             <select id="perPageSelect" class="per-page-select">
-                <option value="10">10 data</option>
-                <option value="20" selected>20 data</option>
+                <option value="10" selected>10 data</option>
+                <option value="20" >20 data</option>
                 <option value="50">50 data</option>
                 <option value="100">100 data</option>
             </select>
@@ -520,12 +503,6 @@
                 <i class="fas fa-sync-alt"></i>
             </button>
         </div>
-    </div>
-    
-    <!-- Info Banner -->
-    <div class="info-banner">
-        <i class="fas fa-info-circle"></i>
-        <span><strong>Info:</strong> Log hanya mencatat <strong>perubahan status</strong>. Kolom "Last Check" menunjukkan kapan terakhir service dicek (meskipun status tidak berubah).</span>
     </div>
     
     <div class="log-table-container">
@@ -578,9 +555,9 @@ let refreshInterval = null;
 let logRefreshInterval = null;
 let currentLogFilter = 'all';
 let allLogsData = [];
-let allServicesData = []; // Untuk menyimpan data service (last_checked)
+let allServicesData = [];
 let currentPage = 1;
-let itemsPerPage = 20;
+let itemsPerPage = 10;
 
 // ===============================
 // CSRF TOKEN HELPER
@@ -794,7 +771,6 @@ function updateChart(labels, dataValues) {
 // ===============================
 async function loadLogData() {
     try {
-        // Load services data dulu untuk last_checked
         await loadServicesData();
         
         const response = await fetch('/api/monitoring-logs/?limit=500', {
@@ -829,7 +805,6 @@ async function loadLogData() {
 function renderLogTable() {
     const tbody = document.getElementById('logTableBody');
     
-    // Filter data - support 3 status: UP, WARNING, DOWN
     let filteredLogs = allLogsData;
     if (currentLogFilter !== 'all') {
         filteredLogs = allLogsData.filter(log => {
@@ -847,13 +822,11 @@ function renderLogTable() {
         return;
     }
     
-    // Pagination
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const paginatedLogs = filteredLogs.slice(startIndex, endIndex);
     const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
     
-    // Render rows
     let html = '';
     paginatedLogs.forEach(log => {
         const timestamp = log.timestamp ? new Date(log.timestamp).toLocaleString('id-ID') : '-';
@@ -881,8 +854,6 @@ function renderLogTable() {
         }
         
         let message = log.message || '-';
-        
-        // Ambil last_checked untuk service ini
         const lastChecked = getLastChecked(log.service_name);
         
         html += `
@@ -898,7 +869,6 @@ function renderLogTable() {
     
     tbody.innerHTML = html;
     
-    // Update pagination info
     const startNum = filteredLogs.length === 0 ? 0 : startIndex + 1;
     const endNum = Math.min(endIndex, filteredLogs.length);
     document.getElementById('paginationInfo').innerHTML = `Menampilkan ${startNum} - ${endNum} dari ${filteredLogs.length} entri`;
@@ -1013,13 +983,11 @@ document.addEventListener('DOMContentLoaded', function() {
     loadDashboardData();
     loadLogData();
     
-    // Refresh dashboard data every 30 seconds
     if (refreshInterval) clearInterval(refreshInterval);
     refreshInterval = setInterval(() => {
         loadDashboardData();
     }, 30000);
     
-    // Refresh log data every 10 seconds
     if (logRefreshInterval) clearInterval(logRefreshInterval);
     logRefreshInterval = setInterval(() => {
         loadLogData();

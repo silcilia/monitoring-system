@@ -768,8 +768,8 @@
         <div class="per-page-selector">
             <label><i class="fas fa-eye"></i> Tampilkan:</label>
             <select id="perPageSelect">
-                <option value="10">10 data</option>
-                <option value="20" selected>20 data</option>
+                <option value="10" selected>10 data</option>
+                <option value="20" >20 data</option>
                 <option value="30">30 data</option>
                 <option value="50">50 data</option>
             </select>
@@ -824,7 +824,7 @@
                 <option value="PING">📡 PING</option>
             </select>
             <div class="modal-buttons">
-                <button type="button" class="btn-primary" onclick="saveService()">
+                <button type="button" class="btn-primary" id="saveServiceBtn" onclick="saveService()">
                     <i class="fas fa-save"></i> Simpan
                 </button>
                 <button type="button" class="btn-secondary" onclick="closeServiceModal()">
@@ -860,17 +860,15 @@
     let currentEditId = null;
     let currentDeleteId = null;
     let currentPage = 1;
-    let itemsPerPage = 20;
+    let itemsPerPage = 10;
     let totalItems = 0;
     let totalPages = 0;
     let allServices = [];
     let checkingServiceId = null;
+    let pendingCheckIds = []; // ID service yang sedang dicek
     
-    // Untuk menyimpan posisi scroll dan service yang sedang dicek
     let scrollPosition = 0;
     let lastCheckedServiceId = null;
-    
-    // Auto refresh timer (5 menit)
     let autoRefreshTimer = null;
     
     // ===============================
@@ -960,7 +958,7 @@
                 console.log("[Auto-Refresh] Memperbarui data...", new Date().toLocaleTimeString());
                 loadServices();
             }
-        }, 300000); // 300 detik = 5 menit
+        }, 300000);
     }
     
     function stopAutoRefresh() {
@@ -1104,7 +1102,7 @@
     }
     
     // ===============================
-    // MANUAL CHECK SERVICE (TETAP DI POSISI YANG SAMA)
+    // MANUAL CHECK SERVICE
     // ===============================
     async function manualCheck(serviceId) {
         const isConnected = await checkInternetConnection();
@@ -1116,7 +1114,6 @@
         
         if (checkingServiceId === serviceId) return;
         
-        // Simpan posisi scroll sebelum check
         saveScrollPosition();
         lastCheckedServiceId = serviceId;
         
@@ -1143,10 +1140,8 @@
             const result = await response.json();
             if (result.success) {
                 showNotification(`Status: ${result.status}`, 'success');
-                // Load ulang data dan restore posisi scroll
                 await loadServices();
                 restoreScrollPosition();
-                // Highlight baris yang baru di-check
                 highlightServiceRow(serviceId);
             } else {
                 showNotification(result.error || 'Check failed', 'error');
@@ -1176,7 +1171,7 @@
     }
     
     // ===============================
-    // LOAD SERVICES FROM API (DENGAN SORTING TERBARU DI ATAS)
+    // LOAD SERVICES FROM API
     // ===============================
     async function loadServices() {
         const tbody = document.getElementById('serviceTableBody');
@@ -1210,7 +1205,6 @@
             const data = await response.json();
             
             if (Array.isArray(data)) {
-                // SORTING: Service yang paling baru (ID terbesar) ada di ATAS
                 allServices = data.sort((a, b) => b.id - a.id);
                 totalItems = allServices.length;
             } else if (data.data && Array.isArray(data.data)) {
@@ -1486,7 +1480,7 @@
     }
     
     // ===============================
-    // MODAL SERVICE
+    // MODAL SERVICE - DENGAN NOTIFIKASI SEDANG MENGECEK
     // ===============================
     function openServiceModal() {
         currentEditId = null;
@@ -1495,6 +1489,13 @@
         document.getElementById('name').value = '';
         document.getElementById('url').value = '';
         document.getElementById('service_type').value = 'HTTP';
+        
+        const saveBtn = document.getElementById('saveServiceBtn');
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fas fa-save"></i> Simpan';
+        }
+        
         document.getElementById('serviceModal').style.display = 'flex';
     }
     
@@ -1505,6 +1506,13 @@
         document.getElementById('name').value = name;
         document.getElementById('url').value = url;
         document.getElementById('service_type').value = type;
+        
+        const saveBtn = document.getElementById('saveServiceBtn');
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fas fa-save"></i> Simpan';
+        }
+        
         document.getElementById('serviceModal').style.display = 'flex';
     }
     
@@ -1512,6 +1520,12 @@
         document.getElementById('serviceModal').style.display = 'none';
         document.getElementById('serviceForm').reset();
         currentEditId = null;
+        
+        const saveBtn = document.getElementById('saveServiceBtn');
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fas fa-save"></i> Simpan';
+        }
     }
     
     async function saveService() {
@@ -1527,6 +1541,12 @@
         
         const method = id ? 'PUT' : 'POST';
         const apiUrl = id ? `/api/services/${id}/` : '/api/services/';
+        const saveBtn = document.getElementById('saveServiceBtn');
+        const originalBtnText = saveBtn.innerHTML;
+        
+        // Tampilkan loading di tombol
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
         
         try {
             const response = await fetch(apiUrl, {
@@ -1548,13 +1568,33 @@
             if (!response.ok) throw new Error('Gagal menyimpan');
             
             const result = await response.json();
-            showNotification(result.message || (id ? 'Service berhasil diupdate' : 'Service berhasil ditambahkan'), 'success');
+            
+            // Tandai service sedang dicek
+            const newServiceId = result.id;
+            if (newServiceId && !pendingCheckIds.includes(newServiceId)) {
+                pendingCheckIds.push(newServiceId);
+            }
+            
+            // Tutup modal
             closeServiceModal();
-            loadServices();
+            
+            // Notifikasi bahwa service sedang dicek
+            showNotification(`✅ "${name}" berhasil disimpan! Sedang melakukan pengecekan awal...`, 'success');
+            
+            // Refresh tabel
+            await loadServices();
+            
+            // Hapus dari daftar pending setelah 15 detik dan refresh
+            setTimeout(async () => {
+                pendingCheckIds = pendingCheckIds.filter(id => id !== newServiceId);
+                await loadServices();
+            }, 15000);
             
         } catch (error) {
             console.error('Error:', error);
             showNotification('Gagal menyimpan data', 'error');
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalBtnText;
         }
     }
     
@@ -1650,7 +1690,7 @@
                 notif.style.animation = 'slideOutRight 0.3s ease';
                 setTimeout(() => notif.remove(), 300);
             }
-        }, 3000);
+        }, 4000);
     }
     
     // ===============================
@@ -1672,10 +1712,8 @@
             perPageSelect.addEventListener('change', onPerPageChange);
         }
         
-        // Start auto refresh setiap 5 menit
         startAutoRefresh();
         
-        // Cek koneksi internet setiap 10 detik
         setInterval(checkInternetConnection, 10000);
         checkInternetConnection();
         
@@ -1702,7 +1740,6 @@
             newBtn.onclick = confirmDelete;
         }
         
-        // Hentikan auto refresh saat tab tidak aktif
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
                 stopAutoRefresh();
@@ -1712,7 +1749,6 @@
             }
         });
         
-        // Simpan scroll position sebelum page refresh/unload
         window.addEventListener('beforeunload', () => {
             saveScrollPosition();
         });
@@ -1722,7 +1758,6 @@
         stopAutoRefresh();
     });
     
-    // Event listener online/offline dari browser
     window.addEventListener('online', () => {
         console.log("[Browser] Internet connected!");
         showNotification('✅ Koneksi internet pulih! Memperbarui data...', 'success');
